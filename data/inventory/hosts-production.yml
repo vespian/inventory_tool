@@ -1,0 +1,50 @@
+_meta:
+  checksum: fa060a888992455e92213d5dc419499480f3e7660269cb5e3feac93a9b708fdc
+  version: 1
+groups:
+  front:
+    children: []
+    hosts:
+    - front.y1
+    ippools: {}
+  guests-y1:
+    children: []
+    hosts:
+    - front.y1
+    - smtp.y1
+    ippools:
+      ansible_ssh_host: y1_guests
+  physical:
+    children: []
+    hosts:
+    - y1
+    ippools:
+      tunnel_ip: tunels
+hosts:
+  front.y1:
+    aliases:
+    - front-zz.y1
+    keyvals:
+      ansible_ssh_host: 192.168.125.3
+  smtp.y1:
+    aliases: []
+    keyvals:
+      ansible_ssh_host: 192.168.125.2
+  y1:
+    aliases: []
+    keyvals:
+      ansible_ssh_host: 1.2.3.4
+      tunnel_ip: 192.168.1.125
+ippools:
+  tunels:
+    allocated:
+    - 192.168.1.125
+    network: 192.168.1.0/24
+    reserved: []
+  y1_guests:
+    allocated:
+    - 192.168.125.2
+    - 192.168.125.3
+    network: 192.168.125.0/24
+    reserved:
+    - 192.168.125.1
