@@ -36,19 +36,18 @@ easily imported.
 
 Due to the fact that the Ansible's dynamic inventory interface does not provide
 a way to pass parameters and git does not allow symlinks, thin wrapers scripts
-have to be provided:
-* hosts-production.py
-* hosts-dev.py
+have to be provided. In the *examples/* directory an example wrapper can be
+found: *hosts-production.py*
 
 Wrapper's script task is to store configuration options and locate inventory
 file. Then it passes them to the real inventory tool script script by calling
 it's *main* method.
 
 The location of the inventory data is done basing on inventory's script name,
-current working directory and a constant "data/inventory" path. For example,
+current working directory and the "inventory_path" config variable. For example,
 if the script is named *production-inventory.py*, it resides in repos main
 directory */home/user/playbooks/*, then it will assume that inventory data
-resides in */home/user/playbooks/data/inventory/production-inventory.yml* file.
+resides in */home/user/playbooks/<inventory_path>/production-inventory.yml* file.
 
 As mentioned earlier, the script also stores some configuration options:
 * backend_domain - name of the default domain where all realative (not ending
@@ -58,6 +57,10 @@ with a '.') domains reside.
      mostly for user's input checking.
 * ipnetwork_keywords - the list of keyval variables that should be treated as
      ip addresses. This is used mostly for user's input checking.
+* inventorytool_path - allows for using non-globally available inventory_tool.
+    If not 'None', the relative path is appended to PYTHONPATH
+* inventory_path - one of three elements used (the other two are pwd and scriptname)
+    used to locate inventory file.
 
 ## Principle of operation
 
@@ -80,8 +83,7 @@ to ansible:
 
 ## On disk configuration file format
 
-All inventory files that can be found in data/inventory dir. The are YAML
-documents in following format:
+Inventory files are YAML documents in following format:
 
 ```
 _meta:
@@ -221,21 +223,18 @@ Below, I will try to cover a setup of a new hypervisor hosts along with some
 guests machines. It should give the reader a quick overview of the usage of the
 script.
 
-* Make sure our working directory is clean (no changes to the repo)
-* Identify in which inventory the new hosts should reside
+* lets use the think wrapper provided in the *examples/* directory:
 
     ```
-    ls -1l *.py
-    -rwxrwxr-x. 1 vespian vespian 591 Nov 19 14:22 hosts-dev.py
-    -rwxrwxr-x. 1 vespian vespian 591 Nov 19 14:21 hosts-production.py
+    ls -1l examples/hosts-production.py
+    -rwxrwxr-x. 1 vespian vespian 1082 Dec 30 17:48 examples/hosts-production.py
     ```
-These files relate directly to:
+
+* the wrapper uses the inventory file located in *test/fabric/hosts-production.yml*
 
     ```
-    ls -l data/inventory/*
-    -rw-rw-r--. 1 vespian vespian 700 Nov 17 16:05 data/inventory/hosts-dev.yml
-    -rw-rw-r--. 1 vespian vespian 700 Nov 17 16:05 data/inventory/hosts-production.yml
-
+    ls -1l test/fabric/hosts-production.yml
+    -rw-rw-r--. 1 vespian vespian 908 Dec 30 17:06 test/fabric/hosts-production.yml
     ```
 * We want to start with an empty inventory, so we issue the command with
   '-i/--initialize-inventory'
