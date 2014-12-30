@@ -47,7 +47,7 @@ it's *main* method.
 The location of the inventory data is done basing on inventory's script name,
 current working directory and a constant "data/inventory" path. For example,
 if the script is named *production-inventory.py*, it resides in repos main
-direcotory */home/user/playbooks/*, then it will assume that inventory data
+directory */home/user/playbooks/*, then it will assume that inventory data
 resides in */home/user/playbooks/data/inventory/production-inventory.yml* file.
 
 As mentioned earlier, the script also stores some configuration options:
@@ -217,7 +217,7 @@ Author: Pawel Rozlach <pawel.rozlach@brainly.com>
 
 ```
 
-Below, I will try to cover a setup of a new physical hosts along with some
+Below, I will try to cover a setup of a new hypervisor hosts along with some
 guests machines. It should give the reader a quick overview of the usage of the
 script.
 
@@ -226,10 +226,10 @@ script.
 
     ```
     ls -1l *.py
-    -rwxrwxr-x. 1 vespian vespian 591 Nov 19 14:22 hosts-production.py
     -rwxrwxr-x. 1 vespian vespian 591 Nov 19 14:22 hosts-dev.py
+    -rwxrwxr-x. 1 vespian vespian 591 Nov 19 14:21 hosts-production.py
     ```
-Lets assume that these files relate directly to:
+These files relate directly to:
 
     ```
     ls -l data/inventory/*
@@ -248,190 +248,140 @@ Lets assume that these files relate directly to:
     ```
     ./hosts-production.py group --group-name front --add
     ./hosts-production.py group --group-name guests-y1 --add
-    ./hosts-production.py group --group-name physical --add
+    ./hosts-production.py group --group-name hypervisor --add
 
     ```
-* Now, lets add some hosts
+* Now, we assign network 192.168.125.0/24 for guests on our hypervisor host. The
+    gateway address must be .1, network and broadcast addresses will not be assigned
+    by the tool by default.
 
     ```
-    ./hosts-production.py host --host-name front.y1 --add
-    ./hosts-production.py host --host-name smtp.y1 --add
-    ./hosts-production.py host --host-name y1 --add
+    ./hosts-production.py ippool --ippool-name y1_guests --add 192.168.125.0/24 --book 192.168.125.1 --assign guests-y1 ansible_ssh_host
+    ```
+* Network 192.168.255.0/24 will be used for tunel addresses on our hypervisor hosts
 
     ```
-* Add an alias to our front, so that it is also available under alternative name
+    ./hosts-production.py ippool --ippool-name tunels --add 192.168.255.0/24 --assign hypervisor tunnel_ip
+    ```
+* Now, lets add some hosts:
+    * for y1-front.foobar we want to set up an alias
+    * for y1 public ip address/address used by ssh should be 1.2.3.4
+    * y1-front.foobar and foobarator.y1 ip addresses should be autoassigned
+    * for hypervisor host we want last octet of the tunnel address to match
+    it's ippool (so no auto-assignement).
+    * all the commands here can be broken into multiple smaller one with just
+    one operation per *./hosts-production.py* execution. Here I want to should
+    how to add it in more efficient way.
 
     ```
-    ./hosts-production.py host --host-name front.y1 --set-alias front-zz.y1
-    ```
-* Assign hosts to groups:
+    ./hosts-production.py host --host-name y1-front.foobar --add --alias-add front-foobar.y1 --var-set ansible_ssh_host --group-add guests-y1 front
+    ./hosts-production.py host --host-name foobarator.y1 --add --var-set ansible_ssh_host --group-add guests-y1
+    ./hosts-production.py host --host-name y1 --add --var-set tunnel_ip:192.168.1.125 ansible_ssh_host:1.2.3.4 --group-add hypervisor
 
-    ```
-    ./hosts-production.py group --group-name guests-y1 --host-add smtp.y1
-    ./hosts-production.py group --group-name guests-y1 --host-add front.y1
-    ./hosts-production.py group --group-name physical --host-add y1
-    ./hosts-production.py group --group-name front --host-add front.y1
     ```
 * Lets see how our inventory looks like now
  * first the groups:
 
     ```
-    for i in `./hosts-production.py group --list-all`; do echo $i; ./hosts-production.py group --show --group-name $i; done
-    guests-y1
-    Hosts:
-            - smtp.y1
-            - front.y1
-    Children:
-            <None>
-    Ip pools:
-            <None>
+    for i in `./hosts-production.py group --list-all | sort`; do echo "\#\#\#\# $i"; ./hosts-production.py group --show --group-name $i; done
 
-    physical
+    #### front
     Hosts:
-            - y1
+        - y1-front.foobar
     Children:
-            <None>
+        <None>
     Ip pools:
-            <None>
+        <None>
 
-    front
+    #### guests-y1
     Hosts:
-            - front.y1
+        - foobarator.y1
+        - y1-front.foobar
     Children:
-            <None>
+        <None>
     Ip pools:
-            <None>
+        ansible_ssh_host:y1_guests
+
+    #### hypervisor
+    Hosts:
+        - y1
+    Children:
+        <None>
+    Ip pools:
+        tunnel_ip:tunels
+
     ```
  * now the hosts:
 
     ```
-    for i in `./hosts-production.py host --list-all`; do echo $i; ./hosts-production.py host --show --host-name $i; done
-    front.y1
+    for i in `./hosts-production.py host --list-all | sort`; do echo "\#\#\#\# $i"; ./hosts-production.py host --show --host-name $i; done
+
+    #### foobarator.y1
     Aliases:
-            - front-zz.y1
+        <None>
     Host variables:
-            <None>
+        ansible_ssh_host:192.168.125.3
 
-    smtp.y1
+    #### y1
     Aliases:
-            <None>
+        <None>
     Host variables:
-            <None>
+        tunnel_ip:192.168.1.125
+        ansible_ssh_host:1.2.3.4
 
-    y1
+    #### y1-front.foobar
     Aliases:
-            <None>
+        - front-foobar.y1
     Host variables:
-            <None>
-    ```
-* Now, lets assign some hostvars and ip addresses
- * we assign network 192.168.125.0/24 for guests on our physical host
+        ansible_ssh_host:192.168.125.2
 
     ```
-    ./hosts-production.py ippool --ippool-name y1_guests --add 192.168.125.0/24
-    ./hosts-production.py ippool --ippool-name y1_guests --assign guests-y1 ansible_ssh_host
+ * this is how inventory looks on disk:
 
     ```
- * and network 192.168.1.0/24 for tunel addresses of our physical host
-
-    ```
-    ./hosts-production.py ippool --ippool-name tunels --add 192.168.1.0/24
-    ./hosts-production.py ippool --ippool-name tunels --assign physical tunnel_ip
-    ```
- * gateway address .1 must not be allocated, network and broadcast addresses
- will not be assigned by default
-
-    ```
-     ./hosts-production.py ippool --ippool-name y1_guests --book 192.168.125.1
-    ```
- * now, lets auto-assign ip for our guests:
-
-    ```
-    for i in smtp.y1 front.y1; do ./hosts-production.py host --host-name $i --set-var ansible_ssh_host; done;
-    ```
- * for our physical host, we do not want auto-assignement. We want last octet
-    of tunnel to match its guests network:
-
-    ```
-    ./hosts-production.py host --host-name y1 --set-var tunnel_ip:192.168.1.125
-    ```
- * we would like to connect to our physical host using public IP:
-
-    ```
-    ./hosts-production.py host --host-name y1 --set-var ansible_ssh_host:1.2.3.4
-    ```
- * lets review the results
-
-    ```
-    for i in `./hosts-production.py host --list-all`; do echo $i; ./hosts-production.py host --show --host-name $i; done                                                                                                                                                           [17:18:45]
-    y1
-    Aliases:
-            <None>
-    Host variables:
-            tunnel_ip:192.168.1.125
-            ansible_ssh_host:1.2.3.4
-
-    front.y1
-    Aliases:
-            - front-zz.y1
-    Host variables:
-            ansible_ssh_host:192.168.125.3
-
-    smtp.y1
-    Aliases:
-            <None>
-    Host variables:
-            ansible_ssh_host:192.168.125.2
-    ```
-* finally, lets check what we have now:
-  * this is how inventory looks on disk:
-
-    ```
-    cat ./data/inventory/hosts.yml                                                                                                                                                                                                                            [17:28:58]
     _meta:
-      checksum: c05fe7cb677532426364b62fd083a64e90822be79a87e10dbfa232160dbcd870
-      version: 1
+    checksum: 6d8581df9e68154c7c7118a24ca8a391ad309a233654d044c5f920683cfc0c66
+    version: 1
     groups:
-      front:
+    front:
         children: []
         hosts:
-        - front.y1
+        - y1-front.foobar
         ippools: {}
-      physical:
+    guests-y1:
+        children: []
+        hosts:
+        - foobarator.y1
+        - y1-front.foobar
+        ippools:
+        ansible_ssh_host: y1_guests
+    hypervisor:
         children: []
         hosts:
         - y1
         ippools:
-          tunnel_ip: tunels
-      guests-y1:
-        children: []
-        hosts:
-        - front.y1
-        - smtp.y1
-        ippools:
-          ansible_ssh_host: y1_guests
+        tunnel_ip: tunels
     hosts:
-      smtp.y1:
+    foobarator.y1:
         aliases: []
         keyvals:
-          ansible_ssh_host: 192.168.125.2
-      y1:
+        ansible_ssh_host: 192.168.125.3
+    y1:
         aliases: []
         keyvals:
-          ansible_ssh_host: 1.2.3.4
-          tunnel_ip: 192.168.1.125
-      front.y1:
+        ansible_ssh_host: 1.2.3.4
+        tunnel_ip: 192.168.1.125
+    y1-front.foobar:
         aliases:
-        - front-zz.y1
+        - front-foobar.y1
         keyvals:
-          ansible_ssh_host: 192.168.125.3
+        ansible_ssh_host: 192.168.125.2
     ippools:
-      tunels:
-        allocated:
-        - 192.168.1.125
-        network: 192.168.1.0/24
+    tunels:
+        allocated: []
+        network: 192.168.255.0/24
         reserved: []
-      y1_guests:
+    y1_guests:
         allocated:
         - 192.168.125.2
         - 192.168.125.3
@@ -439,28 +389,28 @@ Lets assume that these files relate directly to:
         reserved:
         - 192.168.125.1
     ```
-  * and what is going to be presented to ansible
-
+ * and what is going to be presented to ansible
 
     ```
     ./hosts-production.py --list
+
     {
         "_meta": {
             "hostvars": {
-                "smtp.y1": {
+                "foobarator.y1": {
                     "aliases": [],
-                    "ansible_ssh_host": "192.168.125.2"
+                    "ansible_ssh_host": "192.168.125.3"
                 },
                 "y1": {
                     "aliases": [],
                     "ansible_ssh_host": "1.2.3.4",
                     "tunnel_ip": "192.168.1.125"
                 },
-                "front.y1": {
+                "y1-front.foobar": {
                     "aliases": [
-                        "front-zz.y1"
+                        "front-foobar.y1"
                     ],
-                    "ansible_ssh_host": "192.168.125.3"
+                    "ansible_ssh_host": "192.168.125.2"
                 }
             }
         },
@@ -468,30 +418,30 @@ Lets assume that these files relate directly to:
             "children": [],
             "hosts": [
                 "y1",
-                "smtp.y1",
-                "front.y1"
+                "foobarator.y1",
+                "y1-front.foobar"
             ],
             "vars": {}
         },
         "front": {
             "children": [],
             "hosts": [
-                "front.y1"
-            ],
-            "vars": {}
-        },
-        "physical": {
-            "children": [],
-            "hosts": [
-                "y1"
+                "y1-front.foobar"
             ],
             "vars": {}
         },
         "guests-y1": {
             "children": [],
             "hosts": [
-                "smtp.y1",
-                "front.y1"
+                "foobarator.y1",
+                "y1-front.foobar"
+            ],
+            "vars": {}
+        },
+        "hypervisor": {
+            "children": [],
+            "hosts": [
+                "y1"
             ],
             "vars": {}
         }
@@ -502,27 +452,27 @@ Lets assume that these files relate directly to:
 
     ```
     ansible -i ./hosts-production.py --list-hosts all
-        front.y1
-        smtp.y1
+        y1-front.foobar
+        foobarator.y1
         y1
 
     ```
 
-## Debugging, common problems:
+# Debugging, common problems:
 
 * Script has some debug logging implemented, please check '-v/--verbose' and
     '--s/--stdout' options for more info:
 
     ```
-    vespian@mop:playbooks/ (prozlach/dns_inventory_upgrade✗) $ ./hosts-production.py -vs host -l
-    __init__.py[24440] DEBUG: /home/vespian/work/git_repos/playbooks/tools/inventory_tool/__init__.py is starting, config: Namespace(add=False, del_alias=None, del_var=None, delete=False, host_name=None, initialize_inventory=False, list=False, list_all=True, set_alias=None, set_var=None, show=False, std_err=True, subcommand='host', verbose=True), inventory_path: /home/vespian/work/git_repos/playbooks/data/inventory/hosts.yml
+    $ ./hosts-production.py -vs host -l                                                                                                                                                                                                                                   [17:36:49]
+    __init__.py[24440] DEBUG: /home/foo/bar/playbooks/tools/__init__.py is starting, config: Namespace(add=False, del_alias=None, del_var=None, delete=False, host_name=None, initialize_inventory=False, list=False, list_all=True, set_alias=None, set_var=None, show=False, std_err=True, subcommand='host', verbose=True), inventory_path: /home/foo/bar/hosts-production.yml
     __init__.py[24440] DEBUG: Parsing ippools into objects
     __init__.py[24440] DEBUG: Parsing hosts into objects
     __init__.py[24440] DEBUG: Parsing groups into objects
-    __init__.py[24440] DEBUG: Inventory /home/vespian/work/git_repos/playbooks/data/inventory/hosts.yml has been loaded.
-    smtp.y1
+    __init__.py[24440] DEBUG: Inventory /home/foo/bar/hosts-production.yml has been loaded.
+    foobarator.y1
     y1
-    front.y1
+    y1-front.foobar
     ```
 
 * In case if script stalls, it is strongly advised to check debugging output,
@@ -536,14 +486,13 @@ Lets assume that these files relate directly to:
 # Miscellaneus
 
 * Hostvars with stricter type checking:
- * by default:
-    * ansible_ssh_port: int
-    * ansible_ssh_host: ip_addr (mandatory)
-    * ansible_ssh_user: str
-    * ansible_connection: str
+ * by default
+  * ansible_ssh_port: int
+  * ansible_ssh_host: ip_addr (mandatory)
+  * ansible_ssh_user: str
+  * ansible_connection: str
  * used for this exercise:
-    * tunnel_ip: ip
-
+  * tunnel_ip: ip
 
 ## Author Information
 
