@@ -344,44 +344,44 @@ def parse_commandline(script_path, commandline):
         action='store',
         type=get_name,
         help="Name of the IP pool.")
-    mutexgroup_ippool = parser_ippool.add_mutually_exclusive_group(required=True)
-    mutexgroup_ippool.add_argument(
+    parser_ippool.add_argument(
         "-a", "--add",
         action="store",
         type=get_ippool,
         metavar="network",
         help="Add a new ippool.",)
-    mutexgroup_ippool.add_argument(
+    parser_ippool.add_argument(
         "-d", "--delete",
         action="store_true",
         default=False,
         help="Delete an ippool",)
-    mutexgroup_ippool.add_argument(
+    parser_ippool.add_argument(
         "-i", "--assign",
         action="store",
         nargs=2,
         type=get_name,
         metavar=("group-name", "retlated-var-name"),
         help="Assign the ippool to a group",)
-    mutexgroup_ippool.add_argument(
+    parser_ippool.add_argument(
         "-r", "--revoke",
         action="store",
         nargs=2,
         type=get_name,
         metavar=("group-name", "retlated-var-name"),
         help="Revoke the ippool from a group",)
-    mutexgroup_ippool.add_argument(
+    parser_ippool.add_argument(
         "-b", "--book",
         action="store",
         type=get_ipaddr,
         metavar="ip-address",
         help="Reserve an ip addres for future use.",)
-    mutexgroup_ippool.add_argument(
+    parser_ippool.add_argument(
         "-c", "--cancel",
         action="store",
         type=get_ipaddr,
         metavar="ip-address",
         help="Restore to the pool an ip address reserved by -b/--book option.")
+    mutexgroup_ippool = parser_ippool.add_mutually_exclusive_group(required=False)
     mutexgroup_ippool.add_argument(
         "-s", "--show",
         action="store_true",
@@ -401,51 +401,51 @@ def parse_commandline(script_path, commandline):
         action='store',
         type=get_name,
         help="Name of the group to work with.")
-    mutexgroup_group = parser_group.add_mutually_exclusive_group(required=True)
-    mutexgroup_group.add_argument(
-        "-l", "--list-all",
-        action='store_true',
-        default=False,
-        help="List all available groups.")
-    mutexgroup_group.add_argument(
+    parser_group.add_argument(
         "-a", "--add",
         action="store_true",
         default=False,
         help="Add a new group.",)
-    mutexgroup_group.add_argument(
+    parser_group.add_argument(
         "-d", "--delete",
         action="store_true",
         default=False,
         help="Delete a group",)
+    parser_group.add_argument(
+        "--child-add",
+        action="store",
+        type=get_name,
+        metavar="child-name",
+        help="Add a child group to the group",)
+    parser_group.add_argument(
+        "--child-del",
+        action="store",
+        type=get_name,
+        metavar="child-name",
+        help="Delete a child group from the group",)
+    parser_group.add_argument(
+        "--host-add",
+        action="store",
+        type=get_name,
+        metavar="host-name",
+        help="Add a host to the group",)
+    parser_group.add_argument(
+        "--host-del",
+        action="store",
+        type=get_name,
+        metavar="host-name",
+        help="Delete a host from the group",)
+    mutexgroup_group = parser_group.add_mutually_exclusive_group(required=False)
     mutexgroup_group.add_argument(
         "-s", "--show",
         action="store_true",
         default=False,
         help="Show group's children and member hosts.",)
     mutexgroup_group.add_argument(
-        "--child-add",
-        action="store",
-        type=get_name,
-        metavar="child-name",
-        help="Add a child group to the group",)
-    mutexgroup_group.add_argument(
-        "--child-del",
-        action="store",
-        type=get_name,
-        metavar="child-name",
-        help="Delete a child group from the group",)
-    mutexgroup_group.add_argument(
-        "--host-add",
-        action="store",
-        type=get_name,
-        metavar="host-name",
-        help="Add a host to the group",)
-    mutexgroup_group.add_argument(
-        "--host-del",
-        action="store",
-        type=get_name,
-        metavar="host-name",
-        help="Delete a host from the group",)
+        "-l", "--list-all",
+        action='store_true',
+        default=False,
+        help="List all available groups.")
 
     # Host related
     parser_host = subparsers.add_parser("host",
@@ -455,28 +455,17 @@ def parse_commandline(script_path, commandline):
         action='store',
         type=get_fqdn,
         help="Name of the host to work with.")
-    mutexgroup_host = parser_host.add_mutually_exclusive_group(required=True)
-    mutexgroup_host.add_argument(
-        "-l", "--list-all",
-        action="store_true",
-        default=False,
-        help="List all hosts.",)
-    mutexgroup_host.add_argument(
+    parser_host.add_argument(
         "-a", "--add",
         action="store_true",
         default=False,
         help="Add a new host.",)
-    mutexgroup_host.add_argument(
+    parser_host.add_argument(
         "-d", "--delete",
         action="store_true",
         default=False,
         help="Delete a host",)
-    mutexgroup_host.add_argument(
-        "-s", "--show",
-        action="store_true",
-        default=False,
-        help="Show hosts data.",)
-    mutexgroup_host.add_argument(
+    parser_host.add_argument(
         "--var-set",
         action="store",
         type=get_keyval,
@@ -484,25 +473,50 @@ def parse_commandline(script_path, commandline):
         metavar="key:val",
         help="Add a key:val pair to host. Depending on the key, val may be " +
              "optional")
-    mutexgroup_host.add_argument(
+    parser_host.add_argument(
         "--var-del",
         action="store",
         type=get_name,
         nargs="+",
         metavar="key",
         help="Delete a key:val pairs from the host data.",)
-    mutexgroup_host.add_argument(
+    parser_host.add_argument(
+        "--group-add",
+        action="store",
+        type=get_name,
+        nargs="+",
+        metavar="group",
+        help="Assign host to a group/groups.",)
+    parser_host.add_argument(
+        "--group-del",
+        action="store",
+        type=get_name,
+        nargs="+",
+        metavar="group",
+        help="Remove host from a group/groups.",)
+    parser_host.add_argument(
         "--alias-add",
         action="store",
         type=get_fqdn,
         metavar="alias",
         help="Add an alias name to the host.",)
-    mutexgroup_host.add_argument(
+    parser_host.add_argument(
         "--alias-del",
         action="store",
         type=get_fqdn,
         metavar="alias",
         help="Remove an alias from the host.",)
+    mutexgroup_host = parser_host.add_mutually_exclusive_group(required=False)
+    mutexgroup_host.add_argument(
+        "-s", "--show",
+        action="store_true",
+        default=False,
+        help="Show hosts data.",)
+    mutexgroup_host.add_argument(
+        "-l", "--list-all",
+        action="store_true",
+        default=False,
+        help="List all hosts.",)
 
     args = parser.parse_args(commandline)
 
@@ -2040,11 +2054,29 @@ def main(args, inventory_path, backend_domain, extra_ipaddress_keywords=[],
             res = inventory.get_ansible_inventory()
             save_data = inventory.is_recalculated()
             print(json.dumps(res, sort_keys=True, indent=4, separators=(',', ': ')))
-        elif config.subcommand == 'ippool':
-            if config.add is not None:
-                inventory.ippool_add(pool=config.ippool_name,
-                                     pool_obj=config.add)
-                save_data = True
+        elif 'subcommand' in config and config.subcommand == 'ippool':
+            if any([config.add, config.assign, config.revoke, config.book,
+                    config.cancel]):
+                if config.add is not None:
+                    inventory.ippool_add(pool=config.ippool_name,
+                                         pool_obj=config.add)
+                    save_data = True
+                if config.assign is not None:
+                    inventory.ippool_assign(pool=config.ippool_name,
+                                            group=config.assign[0],
+                                            pool_related_var=config.assign[1])
+                    save_data = True
+                if config.revoke is not None:
+                    inventory.ippool_revoke(group=config.revoke[0],
+                                            pool_related_var=config.revoke[1])
+                if config.book is not None:
+                    inventory.ippool_book_ipaddr(pool=config.ippool_name,
+                                                 ipaddr=config.book)
+                    save_data = True
+                if config.cancel is not None:
+                    inventory.ippool_cancel_ipaddr(pool=config.ippool_name,
+                                                   ipaddr=config.book)
+                    save_data = True
             elif config.delete:
                 inventory.ippool_del(pool=config.ippool_name)
                 save_data = True
@@ -2057,26 +2089,28 @@ def main(args, inventory_path, backend_domain, extra_ipaddress_keywords=[],
                 data = inventory.ippool_get()
                 for key in data:
                     print(key)
-            elif config.assign is not None:
-                inventory.ippool_assign(pool=config.ippool_name,
-                                        group=config.assign[0],
-                                        pool_related_var=config.assign[1])
-                save_data = True
-            elif config.revoke is not None:
-                inventory.ippool_revoke(group=config.revoke[0],
-                                        pool_related_var=config.revoke[1])
-            elif config.book is not None:
-                inventory.ippool_book_ipaddr(pool=config.ippool_name,
-                                             ipaddr=config.book)
-                save_data = True
-            elif config.cancel is not None:
-                inventory.ippool_cancel_ipaddr(pool=config.ippool_name,
-                                               ipaddr=config.book)
-                save_data = True
-        elif config.subcommand == 'group':
-            if config.add:
-                inventory.group_add(group=config.group_name)
-                save_data = True
+        elif 'subcommand' in config and config.subcommand == 'group':
+            if any([config.add, config.child_add, config.child_del,
+                    config.host_add, config.host_del]):
+                if config.add:
+                    inventory.group_add(group=config.group_name)
+                    save_data = True
+                if config.child_add is not None:
+                    inventory.group_child_add(group=config.group_name,
+                                              child=config.child_add)
+                    save_data = True
+                if config.child_del is not None:
+                    inventory.group_child_del(group=config.group_name,
+                                              child=config.child_del)
+                    save_data = True
+                if config.host_add is not None:
+                    inventory.group_host_add(group=config.group_name,
+                                             host=config.host_add)
+                    save_data = True
+                if config.host_del is not None:
+                    inventory.group_host_del(group=config.group_name,
+                                             host=config.host_del)
+                    save_data = True
             elif config.delete:
                 inventory.group_del(group=config.group_name)
                 save_data = True
@@ -2089,26 +2123,39 @@ def main(args, inventory_path, backend_domain, extra_ipaddress_keywords=[],
                 data = inventory.group_get()
                 for key in data:
                     print(key)
-            elif config.child_add is not None:
-                inventory.group_child_add(group=config.group_name,
-                                          child=config.child_add)
-                save_data = True
-            elif config.child_del is not None:
-                inventory.group_child_del(group=config.group_name,
-                                          child=config.child_del)
-                save_data = True
-            elif config.host_add is not None:
-                inventory.group_host_add(group=config.group_name,
-                                         host=config.host_add)
-                save_data = True
-            elif config.host_del is not None:
-                inventory.group_host_del(group=config.group_name,
-                                         host=config.host_del)
-                save_data = True
-        elif config.subcommand == 'host':
-            if config.add:
-                inventory.host_add(host=config.host_name)
-                save_data = True
+        elif 'subcommand' in config and config.subcommand == 'host':
+            if any([config.add, config.var_set, config.var_del,
+                    config.alias_add, config.alias_del, config.group_add,
+                    config.group_del]):
+                if config.add:
+                    inventory.host_add(host=config.host_name)
+                    save_data = True
+                if config.group_add is not None:
+                    for group in config.group_add:
+                        inventory.group_host_add(host=config.host_name,
+                                                 group=group)
+                    save_data = True
+                if config.group_del is not None:
+                    for group in config.group_del:
+                        inventory.group_host_del(host=config.host_name,
+                                                 group=group)
+                    save_data = True
+                if config.var_set is not None:
+                    inventory.host_set_vars(host=config.host_name,
+                                            data=config.var_set)
+                    save_data = True
+                if config.var_del is not None:
+                    inventory.host_del_vars(host=config.host_name,
+                                            keys=config.var_del)
+                    save_data = True
+                if config.alias_add is not None:
+                    inventory.host_alias_add(host=config.host_name,
+                                             alias=config.alias_add)
+                    save_data = True
+                if config.alias_del is not None:
+                    inventory.host_alias_del(host=config.host_name,
+                                             alias=config.alias_del)
+                    save_data = True
             elif config.delete:
                 inventory.host_del(host=config.host_name)
                 save_data = True
@@ -2120,22 +2167,6 @@ def main(args, inventory_path, backend_domain, extra_ipaddress_keywords=[],
                 data = inventory.host_get()
                 for key in data:
                     print(key)
-            elif config.var_set is not None:
-                inventory.host_set_vars(host=config.host_name,
-                                        data=config.var_set)
-                save_data = True
-            elif config.var_del is not None:
-                inventory.host_del_vars(host=config.host_name,
-                                        keys=config.var_del)
-                save_data = True
-            elif config.alias_add is not None:
-                inventory.host_alias_add(host=config.host_name,
-                                         alias=config.alias_add)
-                save_data = True
-            elif config.alias_del is not None:
-                inventory.host_alias_del(host=config.host_name,
-                                         alias=config.alias_del)
-                save_data = True
     except ScriptException as e:
         logging.error(str(e))
         sys.exit(1)
