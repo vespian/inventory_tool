@@ -1,5 +1,8 @@
 # Inventory tool
 
+[![Build
+Status](https://travis-ci.org/vespian/inventory_tool.svg?branch=master)](https://travis-ci.org/vespian/inventory_tool)
+
 Script intended to augment Ansible's inventory management.
 
 ## Motivation
