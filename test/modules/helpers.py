@@ -14,19 +14,21 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-# Global imports:
-import mock
-import os
-import sys
-import unittest
+def stringify(input_obj):
+    """Convert in-place all hash/list elements to string
 
-# To perform local imports first we need to fix PYTHONPATH:
-pwd = os.path.abspath(os.path.dirname(__file__))
-sys.path.append(os.path.abspath(pwd + '/../../modules/'))
+    Args:
+        in: input object
+    """
 
-# Local imports:
-import file_paths as paths
-import inventory_tool
-
-class TestInventoryTool(unittest.TestCase):
-    pass
+    for i, item in enumerate(input_obj):
+        if isinstance(input_obj, dict):
+            if isinstance(input_obj[item], dict) or isinstance(input_obj[item], list):
+                stringify(input_obj[item])
+            else:
+                input_obj[item] = str(input_obj[item])
+        elif isinstance(input_obj, list):
+            if isinstance(input_obj[i], dict) or isinstance(input_obj[i], list):
+                stringify(input_obj[i])
+            else:
+                input_obj[i] = str(item)

@@ -16,7 +16,7 @@
 
 import re
 
-from inventory_tool.validators import KeyWordValidator
+from inventory_tool.validators import KeyWordValidator, HostnameParser
 from inventory_tool.exception import BadDataException, MalformedInputException
 
 # For Python3 < 3.3, ipaddress module is available as an extra module,
@@ -70,13 +70,13 @@ class Host:
         """Present object in human-readable form"""
         ret = "Aliases:\n"
         if self._aliases:
-            for alias in self._aliases:
+            for alias in sorted(self._aliases):
                 ret += "\t- {0}\n".format(alias)
         else:
             ret += "\t<None>\n"
         ret += "Host variables:\n"
         if self._keyvals:
-            for keyval in self._keyvals:
+            for keyval in sorted(self._keyvals):
                 ret += "\t{0}:{1}\n".format(keyval, self._keyvals[keyval])
         else:
             ret += "\t<None>\n"
@@ -160,7 +160,7 @@ class Host:
         Raises:
             MalformedInputException: alias is already present in the aliases list
         """
-        alias_n = self.normalize_hostname(alias)
+        alias_n = HostnameParser.normalize_hostname(alias)
         if alias_n not in self._aliases:
             self._aliases.append(alias_n)
         else:
@@ -176,7 +176,7 @@ class Host:
         Raises:
             MalformedInputException: alias has not been set yet
         """
-        alias_n = self.normalize_hostname(alias)
+        alias_n = HostnameParser.normalize_hostname(alias)
         if alias_n in self._aliases:
             self._aliases.remove(alias_n)
         else:
