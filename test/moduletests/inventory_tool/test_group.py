@@ -25,11 +25,9 @@ pwd = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(os.path.abspath(pwd + '/../../modules/'))
 
 # Local imports:
-import helpers
-from inventory_tool.validators import KeyWordValidator
 from inventory_tool.object.group import Group
 from inventory_tool.cmdline import HostnameParser
-from inventory_tool.exception import BadDataException, MalformedInputException
+from inventory_tool.exception import MalformedInputException
 
 
 class TestGroupBase(unittest.TestCase):
@@ -154,7 +152,7 @@ class TestGroupHost(TestGroupBase):
 
     def test_del_missing_host_without_reporting(self):
         self.assertIsNone(self.group_obj.del_host('a-missing-host',
-                                                   reporting=False))
+                                                  reporting=False))
 
     def test_del_existing_host(self):
         self.group_obj.del_host(self._hosts[-1])
