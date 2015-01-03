@@ -30,16 +30,16 @@ cwd = op.dirname(op.realpath(__file__))
 # Import inventory_tool
 if inventorytool_path is not None:
     sys.path.insert(0, op.abspath(op.join(cwd, inventorytool_path)))
-import inventory_tool
+import inventory_tool.cmdline as cmd
 
 # Locate the inventory file:
 name = op.basename(sys.argv[0]).split(".")[0] + ".yml"
 inventory_path = op.abspath(op.join(cwd, inventory_path, name))
 
 if __name__ == '__main__':
-    inventory_tool.main(sys.argv,
-                        inventory_path,
-                        backend_domain=backend_domain,
-                        extra_ipaddress_keywords=ipaddress_keywords,
-                        extra_ipnetwork_keywords=ipnetwork_keywords,
-                        )
+    cmd.main(sys.argv,
+             inventory_path,
+             backend_domain=backend_domain,
+             extra_ipaddress_keywords=ipaddress_keywords,
+             extra_ipnetwork_keywords=ipnetwork_keywords,
+             )
