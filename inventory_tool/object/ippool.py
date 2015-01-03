@@ -214,3 +214,4 @@ class IPPool:
                 msg += "\t- {0}\n".format(tmp)
         else:
             msg += "\t<None>\n"
+        return msg
