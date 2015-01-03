@@ -15,7 +15,6 @@
 # the License.
 
 # Global imports:
-import mock
 import os
 import sys
 import unittest
@@ -25,10 +24,7 @@ pwd = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(os.path.abspath(pwd + '/../../modules/'))
 
 # Local imports:
-import file_paths as paths
 import helpers
-import inventory_tool
-
 from inventory_tool.validators import KeyWordValidator
 from inventory_tool.object.host import Host
 from inventory_tool.cmdline import HostnameParser
@@ -47,7 +43,7 @@ except ImportError:
 class TestHostBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        KeyWordValidator.set_extra_ipnetwork_keywords(["ipnetwork_var",])
+        KeyWordValidator.set_extra_ipnetwork_keywords(["ipnetwork_var"])
         KeyWordValidator.set_extra_integer_keywords(["integer_var"])
         HostnameParser.set_backend_domain("test.domain.org")
 
@@ -57,7 +53,7 @@ class TestHostBase(unittest.TestCase):
                                "some_var": "some_val",
                                "integer_var": 1234,
                                "ipnetwork_var": "1.2.3.0/24",
-                              }
+                               }
         self._keyvals_obj = self._keyvals_plain.copy()
         self._keyvals_obj['ansible_ssh_host'] = \
             ip_address(self._keyvals_obj['ansible_ssh_host'])
@@ -77,7 +73,7 @@ class TestHostInitalization(TestHostBase):
 
     def test_malformed_init_args(self):
         with self.assertRaises(BadDataException):
-            self.host_obj = Host(keyvals={"ansible_ssh_host": "not-an-ip",})
+            self.host_obj = Host(keyvals={"ansible_ssh_host": "not-an-ip"})
 
 
 class TestHostToString(TestHostMethodsBase):
