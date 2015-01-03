@@ -49,19 +49,19 @@ class Group:
         """Present object in human-readable form"""
         ret = "Hosts:\n"
         if self._hosts:
-            for host in self._hosts:
+            for host in sorted(self._hosts):
                 ret += "\t- {0}\n".format(host)
         else:
             ret += "\t<None>\n"
         ret += "Children:\n"
         if self._children:
-            for child in self._children:
+            for child in sorted(self._children):
                 ret += "\t- {0}\n".format(child)
         else:
             ret += "\t<None>\n"
         ret += "Ip pools:\n"
         if self._ippools:
-            for var in self._ippools:
+            for var in sorted(self._ippools):
                 ret += "\t{0}:{1}\n".format(var, self._ippools[var])
         else:
             ret += "\t<None>\n"
@@ -233,7 +233,7 @@ class Group:
         Args:
             pool: pool that should be unlinked.
         """
-        for item in self._ippools.items():
+        for item in self._ippools.copy().items():
             if item[1] == pool:
                 logging.debug("Removing pool by pool {0}:{1}.".format(
                     item[0], item[1]))
