@@ -15,6 +15,7 @@
 # the License.
 
 import argparse
+import json
 import logging
 import logging.handlers
 import sys
@@ -27,11 +28,6 @@ from inventory_tool.object.inventory import InventoryData
 from inventory_tool.validators import KeyWordValidator, HostnameParser
 from inventory_tool.validators import get_name, get_ippool, get_ipaddr, get_fqdn, get_keyval
 
-# Simplejason is updated more frequently, lets check if it is installed:
-try:
-    import simplejson as json
-except ImportError:
-    import json
 
 def main(args, inventory_path, backend_domain, extra_ipaddress_keywords=[],
          extra_ipnetwork_keywords=[], extra_integer_keywords=[]):
