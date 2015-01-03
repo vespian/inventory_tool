@@ -47,14 +47,6 @@ class TestGroupBase(unittest.TestCase):
                                )
 
 
-class TestGroupInit(TestGroupBase):
-    def test_correct_init(self):
-        Group(hosts=self._hosts,
-              children=self._children,
-              ippools=self._ippools
-              )
-
-
 class TestGroupToString(TestGroupBase):
     def test_to_string_with_data(self):
         correct_str = \
