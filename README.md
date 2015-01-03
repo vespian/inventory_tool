@@ -37,10 +37,36 @@ easily imported.
 
 ## Installation
 
+In order to run inventory_tool you need to have following dependencies installed:
+- python >=3.2 (not tested on earlier versions)
+- python3-yaml
+
 Due to the fact that the Ansible's dynamic inventory interface does not provide
 a way to pass parameters and git does not allow symlinks, thin wrapers scripts
 have to be provided. In the *examples/* directory an example wrapper can be
-found: *hosts-production.py*
+found: *hosts-production.py*. This file should be used to create wrapper that
+will be used with user's playbooks.
+
+## Principle of operation
+
+The script uses Ansibles dynamic inventory API:
+
+http://docs.ansible.com/developing_inventory.html
+
+The ansible itself calls the script passed on the command line (-i/--inventory-file),
+and if it detects that it is an executable python script - it calls it with
+"--list" parameter and excpets whole inventory in JSON format on stdout. The
+format of the output is specified at the link above.
+
+The script itself does some sanity checking on the inventory before returning it
+to ansible:
+* if manual changes were detected:
+ * it recalculates the usage of all the ip pools
+ * checks inexistant child groups and host group members
+ * checks for overlapping ip pools
+* it always checks if **all** the hosts have _ansible_ssh_host_ variable defined
+
+## Wrapper script
 
 Wrapper's script task is to store configuration options and locate inventory
 file. Then it passes them to the real inventory tool script script by calling
@@ -65,24 +91,6 @@ with a '.') domains reside.
 * inventory_path - one of three elements used (the other two are pwd and scriptname)
     used to locate inventory file.
 
-## Principle of operation
-
-The script uses Ansibles dynamic inventory API:
-
-http://docs.ansible.com/developing_inventory.html
-
-The ansible itself calls the script passed on the command line (-i/--inventory-file),
-and if it detects that it is an executable python script - it calls it with
-"--list" parameter and excpets whole inventory in JSON format on stdout. The
-format of the output is specified at the link above.
-
-The script itself does some sanity checking on the inventory before returning it
-to ansible:
-* if manual changes were detected:
- * it recalculates the usage of all the ip pools
- * checks inexistant child groups and host group members
- * checks for overlapping ip pools
-* it always checks if **all** the hosts have _ansible_ssh_host_ variable defined
 
 ## On disk configuration file format
 
