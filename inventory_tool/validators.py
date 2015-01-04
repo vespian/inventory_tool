@@ -263,7 +263,7 @@ def get_keyval(string):
 
     # ansible_connection type k-val:
     if ret["key"] == "ansible_connection":
-        if not KeyWordValidator.is_connection_keyword(ret["key"]):
+        if not KeyWordValidator.is_connection_keyword(ret["val"]):
             msg = "Key param {0} requires ".format(ret["key"]) + \
                   "one of following connection types: " + \
                   ','.join(KeyWordValidator.get_connection_keywords()) + \
