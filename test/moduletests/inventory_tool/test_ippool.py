@@ -15,6 +15,7 @@
 # the License.
 
 # Global imports:
+import mock
 import os
 import sys
 import unittest
@@ -37,8 +38,11 @@ except ImportError:
     from ipaddr import IPNetwork as ip_network
 
 
+@mock.patch('logging.warn')
+@mock.patch('logging.info')
+@mock.patch('logging.error')
 class TestIPPoolBase(unittest.TestCase):
-    def setUp(self):
+    def setUp(self, *unused):
         self._network_str = "172.21.243.0/28"
         self._network_obj = ip_network(self._network_str)
         self._allocated_str = ["172.21.243.1",
@@ -58,7 +62,7 @@ class TestIPPoolBase(unittest.TestCase):
 
 
 class TestIPPoolToString(TestIPPoolBase):
-    def test_to_string_with_data(self):
+    def test_to_string_with_data(self, *unused):
         correct_str = \
 """Network: 172.21.243.0/28
 Allocated:
@@ -71,7 +75,7 @@ Reserved:
 """
         self.assertEqual(correct_str, str(self.ippool_obj))
 
-    def test_to_string_without_data(self):
+    def test_to_string_without_data(self, *unused):
         obj = IPPool(network=self._network_str)
         correct_str = \
 """Network: 172.21.243.0/28
@@ -84,7 +88,7 @@ Reserved:
 
 
 class TestIPPoolGetHash(TestIPPoolBase):
-    def test_get_hash(self):
+    def test_get_hash(self, *unused):
         correct_hash = {"network": self._network_str,
                         "allocated": sorted(self._allocated_str),
                         "reserved": sorted(self._reserved_str),
@@ -93,33 +97,33 @@ class TestIPPoolGetHash(TestIPPoolBase):
 
 
 class TestIPPoolContains(TestIPPoolBase):
-    def test_contains_str(self):
+    def test_contains_str(self, *unused):
         self.assertTrue(self._allocated_str[0] in self.ippool_obj)
 
-    def test_not_contains_str(self):
+    def test_not_contains_str(self, *unused):
         self.assertFalse("1.2.3.4" in self.ippool_obj)
 
-    def test_contains_obj(self):
+    def test_contains_obj(self, *unused):
         self.assertTrue(self._allocated_obj[0] in self.ippool_obj)
 
-    def test_not_contains_obj(self):
+    def test_not_contains_obj(self, *unused):
         self.assertFalse(ip_address("1.2.3.4") in self.ippool_obj)
 
-    def test_unrelated_object(self):
+    def test_unrelated_object(self, *unused):
         with self.assertRaises(MalformedInputException):
             ip_network("1.2.3.0/24") in self.ippool_obj
 
-    def test_overlaps_if_overlaps(self):
+    def test_overlaps_if_overlaps(self, *unused):
         other = IPPool("172.21.0.0/16")
         self.assertTrue(self.ippool_obj.overlaps(other))
 
-    def test_overlaps_if_does_not_overlaps(self):
+    def test_overlaps_if_does_not_overlaps(self, *unused):
         other = IPPool("1.2.0.0/16")
         self.assertFalse(self.ippool_obj.overlaps(other))
 
 
 class TestIPPoolBooking(TestIPPoolBase):
-    def test_booking_new(self):
+    def test_booking_new(self, *unused):
         ip = "172.21.243.3"
         self.ippool_obj.book(ip_address(ip))
         correct_hash = {"network": self._network_str,
@@ -128,15 +132,15 @@ class TestIPPoolBooking(TestIPPoolBase):
                         }
         self.assertEqual(correct_hash, self.ippool_obj.get_hash())
 
-    def test_booking_existing(self):
+    def test_booking_existing(self, *unused):
         with self.assertRaises(MalformedInputException):
             self.ippool_obj.book(self._reserved_obj[0])
 
-    def test_booking_not_in_the_network(self):
+    def test_booking_not_in_the_network(self, *unused):
         with self.assertRaises(MalformedInputException):
             self.ippool_obj.book(ip_address("1.2.3.4"))
 
-    def test_cancel_existing(self):
+    def test_cancel_existing(self, *unused):
         self.ippool_obj.cancel(self._reserved_obj[0])
         correct_hash = {"network": self._network_str,
                         "allocated": sorted(self._allocated_str),
@@ -144,17 +148,17 @@ class TestIPPoolBooking(TestIPPoolBase):
                         }
         self.assertEqual(correct_hash, self.ippool_obj.get_hash())
 
-    def test_cancel_not_booked_yet(self):
+    def test_cancel_not_booked_yet(self, *unused):
         with self.assertRaises(MalformedInputException):
             self.ippool_obj.cancel(ip_address("172.21.243.3"))
 
-    def test_cancel_not_in_the_network(self):
+    def test_cancel_not_in_the_network(self, *unused):
         with self.assertRaises(MalformedInputException):
             self.ippool_obj.cancel(ip_address("1.2.3.4"))
 
 
 class TestIPPoolAllocation(TestIPPoolBase):
-    def test_release_all(self):
+    def test_release_all(self, *unused):
         self.ippool_obj.release_all()
         correct_hash = {"network": self._network_str,
                         "allocated": [],
@@ -162,7 +166,7 @@ class TestIPPoolAllocation(TestIPPoolBase):
                         }
         self.assertEqual(correct_hash, self.ippool_obj.get_hash())
 
-    def test_release_existing(self):
+    def test_release_existing(self, *unused):
         self.ippool_obj.release(self._allocated_obj[0])
         correct_hash = {"network": self._network_str,
                         "allocated": sorted(self._allocated_str[1:]),
@@ -170,27 +174,27 @@ class TestIPPoolAllocation(TestIPPoolBase):
                         }
         self.assertEqual(correct_hash, self.ippool_obj.get_hash())
 
-    def test_release_non_allocated(self):
+    def test_release_non_allocated(self, *unused):
         with self.assertRaises(MalformedInputException):
             self.ippool_obj.release(ip_address("172.21.243.3"))
 
-    def test_release_outside_of_network(self):
+    def test_release_outside_of_network(self, *unused):
         with self.assertRaises(MalformedInputException):
             self.ippool_obj.release(ip_address("1.2.3.32"))
 
-    def test_allocate_outside_of_network(self):
+    def test_allocate_outside_of_network(self, *unused):
         with self.assertRaises(MalformedInputException):
             self.ippool_obj.allocate(ip_address("1.2.3.32"))
 
-    def test_allocate_already_allocated(self):
+    def test_allocate_already_allocated(self, *unused):
         with self.assertRaises(MalformedInputException):
             self.ippool_obj.allocate(self._allocated_obj[0])
 
-    def test_allocate_already_reserved(self):
+    def test_allocate_already_reserved(self, *unused):
         with self.assertRaises(MalformedInputException):
             self.ippool_obj.allocate(self._reserved_obj[0])
 
-    def test_allocate_OK(self):
+    def test_allocate_OK(self, *unused):
         ip = "172.21.243.3"
         self.ippool_obj.allocate(ip_address(ip))
         correct_hash = {"network": self._network_str,
@@ -199,13 +203,13 @@ class TestIPPoolAllocation(TestIPPoolBase):
                         }
         self.assertEqual(correct_hash, self.ippool_obj.get_hash())
 
-    def test_autoallocate_OK(self):
+    def test_autoallocate_OK(self, *unused):
         self.ippool_obj.allocate()
         tmp = self.ippool_obj.get_hash()
         number_of_allocated = len(tmp['allocated'])
         self.assertEqual(len(self._allocated_str) + 1, number_of_allocated)
 
-    def test_autoallocate_exhaust_ippool(self):
+    def test_autoallocate_exhaust_ippool(self, *unused):
         for i in range(0, 16 - (len(self._allocated_str) + len(self._reserved_str) + 2)):
             self.ippool_obj.allocate()
         with self.assertRaises(GenericException):
