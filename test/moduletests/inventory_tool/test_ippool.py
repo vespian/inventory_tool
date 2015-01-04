@@ -24,11 +24,8 @@ pwd = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(os.path.abspath(pwd + '/../../modules/'))
 
 # Local imports:
-import helpers
-from inventory_tool.validators import KeyWordValidator
 from inventory_tool.object.ippool import IPPool
-from inventory_tool.cmdline import HostnameParser
-from inventory_tool.exception import BadDataException, MalformedInputException
+from inventory_tool.exception import GenericException, MalformedInputException
 
 # For Python3 < 3.3, ipaddress module is available as an extra module,
 # under a different name:
@@ -42,19 +39,16 @@ except ImportError:
 
 class TestIPPoolBase(unittest.TestCase):
     def setUp(self):
-        self._network_str = "172.21.243.0/24"
+        self._network_str = "172.21.243.0/28"
         self._network_obj = ip_network(self._network_str)
-        self._allocated_str = ["172.21.243.14",
-                               "172.21.243.15",
-                               "172.21.243.16",
-                               "172.21.243.19",
+        self._allocated_str = ["172.21.243.1",
+                               "172.21.243.2",
+                               "172.21.243.6",
                                ]
         self._allocated_obj = [ip_address(x) for x in self._allocated_str]
-        self._reserved_str = ["172.21.243.214",
-                               "172.21.243.215",
-                               "172.21.243.216",
-                               "172.21.243.219",
-                               ]
+        self._reserved_str = ["172.21.243.4",
+                              "172.21.243.5",
+                              ]
         self._reserved_obj = [ip_address(x) for x in self._reserved_str]
 
         self.ippool_obj = IPPool(network=self._network_str,
@@ -66,25 +60,21 @@ class TestIPPoolBase(unittest.TestCase):
 class TestIPPoolToString(TestIPPoolBase):
     def test_to_string_with_data(self):
         correct_str = \
-"""Network: 172.21.243.0/24
+"""Network: 172.21.243.0/28
 Allocated:
-\t- 172.21.243.14
-\t- 172.21.243.15
-\t- 172.21.243.16
-\t- 172.21.243.19
+\t- 172.21.243.1
+\t- 172.21.243.2
+\t- 172.21.243.6
 Reserved:
-\t- 172.21.243.214
-\t- 172.21.243.215
-\t- 172.21.243.216
-\t- 172.21.243.219
+\t- 172.21.243.4
+\t- 172.21.243.5
 """
         self.assertEqual(correct_str, str(self.ippool_obj))
 
     def test_to_string_without_data(self):
         obj = IPPool(network=self._network_str)
-        data = str(obj)
         correct_str = \
-"""Network: 172.21.243.0/24
+"""Network: 172.21.243.0/28
 Allocated:
 \t<None>
 Reserved:
@@ -102,69 +92,121 @@ class TestIPPoolGetHash(TestIPPoolBase):
         self.assertEqual(correct_hash, self.ippool_obj.get_hash())
 
 
-#class TestIPPoolKeyVal(TestIPPoolBase):
-#    def test_get_existing_keyval(self):
-#        self.assertEqual("some_val", self.ippool_obj.get_keyval("some_var"))
-#
-#    def test_get_missing_keyval(self):
-#        with self.assertRaises(MalformedInputException):
-#            self.ippool_obj.get_keyval("missing_var")
-#
-#    def test_get_missing_keyval_noreporting(self):
-#        self.assertIsNone(self.ippool_obj.get_keyval("missing_var",
-#                                                   reporting=False))
-#
-#    def test_get_all_keyvals(self):
-#        correct_hash = self._keyvals_obj
-#        correct_hash['aliases'] = self._aliases
-#        self.assertEqual(correct_hash, self.ippool_obj.get_keyval())
-#
-#    def test_get_aliases(self):
-#        self.assertEqual(self._aliases, self.ippool_obj.get_keyval('aliases'))
-#
-#    def test_set_keyval(self):
-#        data = {"key": "integer_var", "val": 15151512351}
-#        self.ippool_obj.set_keyval(data)
-#        self.assertEqual(data["val"], self.ippool_obj.get_keyval(data["key"]))
-#
-#    def test_del_existing_keyval(self):
-#        self.ippool_obj.del_keyval("integer_var")
-#        with self.assertRaises(MalformedInputException):
-#            self.ippool_obj.get_keyval("integer_var")
-#
-#    def test_del_missing_keyval(self):
-#        with self.assertRaises(MalformedInputException):
-#            self.ippool_obj.del_keyval("missing_var")
-#
-#
-#class TestIPPoolAlias(TestIPPoolBase):
-#    def test_get_all_aliases(self):
-#        self.assertEqual(self._aliases, self.ippool_obj.get_aliases())
-#
-#    def test_get_existing_alias(self):
-#        self.assertEqual(self._aliases[0], self.ippool_obj.get_aliases(self._aliases[0]))
-#
-#    def test_get_missing_alias_with_reporting(self):
-#        alias = 'missing.net'
-#        with self.assertRaises(MalformedInputException):
-#            self.assertEqual(alias, self.ippool_obj.get_aliases(alias))
-#
-#    def test_get_missing_alias_without_reporting(self):
-#        self.assertIsNone(self.ippool_obj.get_aliases('missing.net', reporting=False))
-#
-#    def test_existing_alias_add(self):
-#        with self.assertRaises(MalformedInputException):
-#            self.ippool_obj.alias_add(self._aliases[0])
-#
-#    def test_new_alias_add(self):
-#        alias = "some.new.alias.net"
-#        self.ippool_obj.alias_add(alias)
-#        self.assertEqual(self._aliases + [alias, ], self.ippool_obj.get_aliases())
-#
-#    def test_existing_alias_del(self):
-#        self.ippool_obj.alias_del(self._aliases[-1])
-#        self.assertEqual(self._aliases[:-1], self.ippool_obj.get_aliases())
-#
-#    def test_missing_alias_del(self):
-#        with self.assertRaises(MalformedInputException):
-#            self.ippool_obj.alias_del("missing.alias.net")
+class TestIPPoolContains(TestIPPoolBase):
+    def test_contains_str(self):
+        self.assertTrue(self._allocated_str[0] in self.ippool_obj)
+
+    def test_not_contains_str(self):
+        self.assertFalse("1.2.3.4" in self.ippool_obj)
+
+    def test_contains_obj(self):
+        self.assertTrue(self._allocated_obj[0] in self.ippool_obj)
+
+    def test_not_contains_obj(self):
+        self.assertFalse(ip_address("1.2.3.4") in self.ippool_obj)
+
+    def test_unrelated_object(self):
+        with self.assertRaises(MalformedInputException):
+            ip_network("1.2.3.0/24") in self.ippool_obj
+
+    def test_overlaps_if_overlaps(self):
+        other = IPPool("172.21.0.0/16")
+        self.assertTrue(self.ippool_obj.overlaps(other))
+
+    def test_overlaps_if_does_not_overlaps(self):
+        other = IPPool("1.2.0.0/16")
+        self.assertFalse(self.ippool_obj.overlaps(other))
+
+
+class TestIPPoolBooking(TestIPPoolBase):
+    def test_booking_new(self):
+        ip = "172.21.243.3"
+        self.ippool_obj.book(ip_address(ip))
+        correct_hash = {"network": self._network_str,
+                        "allocated": sorted(self._allocated_str),
+                        "reserved": sorted(self._reserved_str + [ip]),
+                        }
+        self.assertEqual(correct_hash, self.ippool_obj.get_hash())
+
+    def test_booking_existing(self):
+        with self.assertRaises(MalformedInputException):
+            self.ippool_obj.book(self._reserved_obj[0])
+
+    def test_booking_not_in_the_network(self):
+        with self.assertRaises(MalformedInputException):
+            self.ippool_obj.book(ip_address("1.2.3.4"))
+
+    def test_cancel_existing(self):
+        self.ippool_obj.cancel(self._reserved_obj[0])
+        correct_hash = {"network": self._network_str,
+                        "allocated": sorted(self._allocated_str),
+                        "reserved": sorted(self._reserved_str[1:]),
+                        }
+        self.assertEqual(correct_hash, self.ippool_obj.get_hash())
+
+    def test_cancel_not_booked_yet(self):
+        with self.assertRaises(MalformedInputException):
+            self.ippool_obj.cancel(ip_address("172.21.243.3"))
+
+    def test_cancel_not_in_the_network(self):
+        with self.assertRaises(MalformedInputException):
+            self.ippool_obj.cancel(ip_address("1.2.3.4"))
+
+
+class TestIPPoolAllocation(TestIPPoolBase):
+    def test_release_all(self):
+        self.ippool_obj.release_all()
+        correct_hash = {"network": self._network_str,
+                        "allocated": [],
+                        "reserved": sorted(self._reserved_str),
+                        }
+        self.assertEqual(correct_hash, self.ippool_obj.get_hash())
+
+    def test_release_existing(self):
+        self.ippool_obj.release(self._allocated_obj[0])
+        correct_hash = {"network": self._network_str,
+                        "allocated": sorted(self._allocated_str[1:]),
+                        "reserved": sorted(self._reserved_str),
+                        }
+        self.assertEqual(correct_hash, self.ippool_obj.get_hash())
+
+    def test_release_non_allocated(self):
+        with self.assertRaises(MalformedInputException):
+            self.ippool_obj.release(ip_address("172.21.243.3"))
+
+    def test_release_outside_of_network(self):
+        with self.assertRaises(MalformedInputException):
+            self.ippool_obj.release(ip_address("1.2.3.32"))
+
+    def test_allocate_outside_of_network(self):
+        with self.assertRaises(MalformedInputException):
+            self.ippool_obj.allocate(ip_address("1.2.3.32"))
+
+    def test_allocate_already_allocated(self):
+        with self.assertRaises(MalformedInputException):
+            self.ippool_obj.allocate(self._allocated_obj[0])
+
+    def test_allocate_already_reserved(self):
+        with self.assertRaises(MalformedInputException):
+            self.ippool_obj.allocate(self._reserved_obj[0])
+
+    def test_allocate_OK(self):
+        ip = "172.21.243.3"
+        self.ippool_obj.allocate(ip_address(ip))
+        correct_hash = {"network": self._network_str,
+                        "allocated": sorted(self._allocated_str + [ip]),
+                        "reserved": sorted(self._reserved_str),
+                        }
+        self.assertEqual(correct_hash, self.ippool_obj.get_hash())
+
+    def test_autoallocate_OK(self):
+        self.ippool_obj.allocate()
+        tmp = self.ippool_obj.get_hash()
+        number_of_allocated = len(tmp['allocated'])
+        self.assertEqual(len(self._allocated_str) + 1, number_of_allocated)
+
+    def test_autoallocate_exhaust_ippool(self):
+        for i in range(0, 16 - (len(self._allocated_str) + len(self._reserved_str) + 2)):
+            self.ippool_obj.allocate()
+        with self.assertRaises(GenericException):
+            self.ippool_obj.allocate()

@@ -135,8 +135,8 @@ class IPPool:
         if ip in self._allocated:
             self._allocated.remove(ip_address(ip))
         else:
-            msg = "An attempt to release a inexistant ip {0} ".format(ip)
-            msg += "from allocated ips list."
+            msg = "An attempt to release an ip {0} ".format(ip)
+            msg += "which has not been allocated yet."
             raise MalformedInputException(msg)
 
     def release_all(self):
@@ -164,6 +164,9 @@ class IPPool:
         """
         if ip not in self._network:
             msg = "IP {0} does not belong to network {1}".format(ip, self._network)
+            raise MalformedInputException(msg)
+        elif ip in self._reserved:
+            msg = "IP {0} has already been booked".format(ip)
             raise MalformedInputException(msg)
         else:
             self._reserved.append(ip)
@@ -198,6 +201,9 @@ class IPPool:
         elif isinstance(other, IPv4Address) or \
                 isinstance(other, IPv6Address):
             return other in self._network
+        else:
+            msg = "Could not determine membership of the object {0}".format(other)
+            raise MalformedInputException(msg)
 
     def __str__(self):
         """Present object in human-readable form"""
