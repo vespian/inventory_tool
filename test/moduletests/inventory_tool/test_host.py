@@ -25,7 +25,7 @@ sys.path.append(os.path.abspath(pwd + '/../../modules/'))
 
 # Local imports:
 import helpers
-from inventory_tool.validators import KeyWordValidator
+from inventory_tool.validators import KeyWordValidator  # FIXME: mock it out
 from inventory_tool.object.host import Host
 from inventory_tool.cmdline import HostnameParser
 from inventory_tool.exception import BadDataException, MalformedInputException
