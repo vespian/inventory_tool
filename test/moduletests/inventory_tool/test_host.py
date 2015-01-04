@@ -15,6 +15,7 @@
 # the License.
 
 # Global imports:
+import mock
 import os
 import sys
 import unittest
@@ -25,40 +26,26 @@ sys.path.append(os.path.abspath(pwd + '/../../modules/'))
 
 # Local imports:
 import helpers
-from inventory_tool.validators import KeyWordValidator  # FIXME: mock it out
 from inventory_tool.object.host import Host
-from inventory_tool.cmdline import HostnameParser
 from inventory_tool.exception import BadDataException, MalformedInputException
 
 # For Python3 < 3.3, ipaddress module is available as an extra module,
 # under a different name:
 try:
     from ipaddress import ip_address
-    from ipaddress import ip_network
 except ImportError:
     from ipaddr import IPAddress as ip_address
-    from ipaddr import IPNetwork as ip_network
 
 
 class TestHostBase(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        KeyWordValidator.set_extra_ipnetwork_keywords(["ipnetwork_var"])
-        KeyWordValidator.set_extra_integer_keywords(["integer_var"])
-        HostnameParser.set_backend_domain("test.domain.org")
-
     def setUp(self):
         self._aliases = ['test.example.com', 'other.domain.net']
         self._keyvals_plain = {"ansible_ssh_host": "1.2.3.4",
                                "some_var": "some_val",
-                               "integer_var": 1234,
-                               "ipnetwork_var": "1.2.3.0/24",
                                }
         self._keyvals_obj = self._keyvals_plain.copy()
         self._keyvals_obj['ansible_ssh_host'] = \
             ip_address(self._keyvals_obj['ansible_ssh_host'])
-        self._keyvals_obj['ipnetwork_var'] = \
-            ip_network(self._keyvals_obj['ipnetwork_var'])
 
 
 class TestHostMethodsBase(TestHostBase):
@@ -84,8 +71,6 @@ class TestHostToString(TestHostMethodsBase):
 \t- test.example.com
 Host variables:
 \tansible_ssh_host:1.2.3.4
-\tinteger_var:1234
-\tipnetwork_var:1.2.3.0/24
 \tsome_var:some_val
 """
         self.assertEqual(correct_str, str(self.host_obj))
@@ -129,14 +114,14 @@ class TestHostKeyVal(TestHostMethodsBase):
         self.assertEqual(self._aliases, self.host_obj.get_keyval('aliases'))
 
     def test_set_keyval(self):
-        data = {"key": "integer_var", "val": 15151512351}
+        data = {"key": "some_keyval", "val": "some_value"}
         self.host_obj.set_keyval(data)
         self.assertEqual(data["val"], self.host_obj.get_keyval(data["key"]))
 
     def test_del_existing_keyval(self):
-        self.host_obj.del_keyval("integer_var")
+        self.host_obj.del_keyval("some_var")
         with self.assertRaises(MalformedInputException):
-            self.host_obj.get_keyval("integer_var")
+            self.host_obj.get_keyval("some_var")
 
     def test_del_missing_keyval(self):
         with self.assertRaises(MalformedInputException):
@@ -144,6 +129,13 @@ class TestHostKeyVal(TestHostMethodsBase):
 
 
 class TestHostAlias(TestHostMethodsBase):
+    def setUp(self):
+        super().setUp()
+        patcher = mock.patch('inventory_tool.validators.HostnameParser.normalize_hostname')
+        self.HostnameParserMock = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.HostnameParserMock.side_effect = lambda x: x
+
     def test_get_all_aliases(self):
         self.assertEqual(self._aliases, self.host_obj.get_aliases())
 
