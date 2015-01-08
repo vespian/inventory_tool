@@ -133,6 +133,9 @@ class TestInventoryInit(TestInventoryBase):
             proper_host_calls, any_order=True)
 
 
+class TestInventoryRecalculation(TestInventoryBase):
+    pass
+
 class TestInventoryGroupFunctionality(TestInventoryBase):
     pass
 
