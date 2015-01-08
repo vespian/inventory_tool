@@ -16,7 +16,9 @@
 
 # Global imports:
 import mock
+from mock import call
 import os
+import yaml
 import sys
 import unittest
 
@@ -26,11 +28,17 @@ sys.path.append(os.path.abspath(pwd + '/../../modules/'))
 
 # Local imports:
 import helpers
+import file_paths as paths
 from inventory_tool.object.inventory import InventoryData
-from inventory_tool.exception import BadDataException, MalformedInputException
+from inventory_tool.exception import MalformedInputException, BadDataException, MalformedInputException
 
 
 class TestInventoryBase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        with open(paths.TEST_INVENTORY, 'r') as fh:
+            cls._file_data = fh.read()
+
     def setUp(self):
         self.mocks = {}
         for patched in ['inventory_tool.object.inventory.IPPool',
@@ -41,32 +49,89 @@ class TestInventoryBase(unittest.TestCase):
                         'logging.debug',
                         'logging.error',
                         'logging.info',
-                        'logging.warn', ]:
+                        'logging.warning', ]:
             patcher = mock.patch(patched)
             self.mocks[patched] = patcher.start()
             self.addCleanup(patcher.stop)
 
 class TestInventoryInit(TestInventoryBase):
-    def setUp(self):
-        # load config from file and mock it
-        # then change only particular fields
-        pass
-
     def test_inventory_init(self):
-        pass
+        empty_inventory = {'_meta': {'hostvars': {}},
+                           'all': {'children': [],
+                                   'hosts': [],
+                                   'vars': {}}}
+        OpenMock = mock.mock_open(read_data = self._file_data)
+        with mock.patch('__main__.open', OpenMock, create=True):
+            obj = InventoryData(paths.TEST_INVENTORY, initialize=True)
+
+        self.assertFalse(OpenMock.called)
+        self.assertEqual(empty_inventory, obj.get_ansible_inventory())
 
     def test_inventory_file_missing(self):
-        pass
+        OpenMock = mock.mock_open(read_data = self._file_data)
+        def raise_not_found(*unused):
+            raise FileNotFoundError
+        OpenMock.side_effect = raise_not_found
+        with self.assertRaises(MalformedInputException):
+            with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
+                obj = InventoryData(paths.TEST_INVENTORY)
 
     def test_load_unsupported_file_format(self):
-        pass
+        data = self._file_data
+        data = data.replace('version: 1', "version: 0")
+        OpenMock = mock.mock_open(read_data=data)
+        with self.assertRaises(BadDataException):
+            with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
+                obj = InventoryData(paths.TEST_INVENTORY)
 
-    def test_load_bad_checksum(self):
+    @mock.patch("inventory_tool.object.inventory.InventoryData.recalculate_inventory")
+    def test_load_bad_checksum(self, RecalculateInventoryMock):
         # mock out inventory recalculation
-        pass
+        data = self._file_data
+        data = data.replace('ca9048976eb8c037685c516', 'ca9048976eb8c037685c000')
+        OpenMock = mock.mock_open(read_data=data)
+        with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
+            InventoryData(paths.TEST_INVENTORY)
+
+        RecalculateInventoryMock.assert_called_with()
+
 
     def test_load_file_ok(self):
-        pass
+        OpenMock = mock.mock_open(read_data=self._file_data)
+
+        with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
+            obj = InventoryData(paths.TEST_INVENTORY)
+
+        OpenMock.assert_called_once_with(paths.TEST_INVENTORY, 'rb')
+        proper_ippool_calls = [call(network='192.168.125.0/24',
+                                    reserved=['192.168.125.1'],
+                                    allocated=['192.168.125.2', '192.168.125.3']),
+                               call(network='192.168.255.0/24',
+                                    reserved=[],
+                                    allocated=[]),]
+        self.mocks['inventory_tool.object.inventory.IPPool'].assert_has_calls(
+            proper_ippool_calls, any_order=True)
+        proper_group_calls = [call(ippools={'tunnel_ip': 'tunels'},
+                                   hosts=['y1'],
+                                   children=[]),
+                              call(ippools={},
+                                   hosts=['y1-front.foobar'],
+                                   children=[]),
+                              call(ippools={'ansible_ssh_host': 'y1_guests'},
+                                   hosts=['foobarator.y1', 'y1-front.foobar'],
+                                   children=[])]
+        self.mocks['inventory_tool.object.inventory.Group'].assert_has_calls(
+            proper_group_calls, any_order=True)
+        proper_host_calls = [call(keyvals={'ansible_ssh_host': '1.2.3.4',
+                                           'tunnel_ip': '192.168.1.125'},
+                                  aliases=[]),
+                             call(keyvals={'ansible_ssh_host': '192.168.125.3'},
+                                  aliases=[]),
+                             call(keyvals={'ansible_ssh_host': '192.168.125.2'},
+                                  aliases=['front-foobar.y1'])]
+        self.mocks['inventory_tool.object.inventory.Host'].assert_has_calls(
+            proper_host_calls, any_order=True)
+
 
 class TestInventoryGroupFunctionality(TestInventoryBase):
     pass

@@ -72,8 +72,13 @@ class InventoryData:
                           }
             return
         else:
-            with open(self._inventory_path, 'rb') as fh:
-                tmp = fh.read()
+            try:
+                with open(self._inventory_path, 'rb') as fh:
+                    tmp = fh.read()
+            except (OSError, IOError) as e:
+                msg = "Failed to open {0}: {1}"
+                msg = msg.format(self._inventory_path, str(e))
+                raise MalformedInputException(msg)
             self._data = yaml.load(tmp, Loader=Loader)
             # Check if will be able to work with this data:
             if self._data["_meta"]["version"] < \
