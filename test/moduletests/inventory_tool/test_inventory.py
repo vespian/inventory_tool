@@ -140,6 +140,16 @@ class TestInventoryInit(TestInventoryBase):
 
 
 class TestInventoryRecalculation(unittest.TestCase):
+    def _normalization_func(self, hostname):
+        if hostname == "foobarator.y1.example.com":
+            return "foobarator.y1"
+        elif hostname == 'gulgulator.example.com':
+            return 'gulgulator'
+        elif hostname == 'other.example.com':
+            return 'other'
+        else:
+            return hostname
+
     def setUp(self):
         self.mocks = {}
         for patched in ['logging.debug',
@@ -154,8 +164,8 @@ class TestInventoryRecalculation(unittest.TestCase):
 
         self.mocks['inventory_tool.object.inventory.KeyWordValidator'].get_ipaddress_keywords.return_value = \
             ['ansible_ssh_host', 'tunnel_ip']
-        self.mocks['inventory_tool.object.inventory.HostnameParser'].normalize_hostname = \
-            lambda x: x
+        self.mocks['inventory_tool.object.inventory.HostnameParser'].normalize_hostname.side_effect = \
+            self._normalization_func
 
     def test_overlapping_ippools(self):
         obj = InventoryData(paths.OVERLAPPING_IPPOOLS_INVENTORY)
@@ -168,7 +178,6 @@ class TestInventoryRecalculation(unittest.TestCase):
 
         obj.recalculate_inventory()
 
-    
     def test_ippool_refresh(self):
         obj = InventoryData(paths.REFRESHED_IPPOOL_INVENTORY)
         obj.recalculate_inventory()
@@ -198,15 +207,31 @@ class TestInventoryRecalculation(unittest.TestCase):
         self.assertTrue(obj.is_recalculated())
 
     def test_hosts_cleanup(self):
-        pass
+        obj = InventoryData(paths.ORPHANED_HOSTS_INVENTORY)
+        obj.recalculate_inventory()
+        front_hosts = obj.group_get("front").get_hosts()
+        guests_y1_hosts = obj.group_get("guests-y1").get_hosts()
+        hypervisor_hosts = obj.group_get("hypervisor").get_hosts()
+        self.assertListEqual(guests_y1_hosts, ['foobarator.y1', 'y1-front.foobar'])
+        self.assertListEqual(front_hosts, ['y1-front.foobar'])
+        self.assertListEqual(hypervisor_hosts, ['y1',])
 
+    @mock.patch('inventory_tool.object.inventory.InventoryData.host_rename')
+    def test_hostname_normalization(self, HostRenameMock):
+        obj = InventoryData(paths.DENORMALIZED_HOSTNAMES_INVENTORY)
+        import ipdb; ipdb.set_trace() # BREAKPOINT
+        obj.recalculate_inventory()
+
+#    def test_alias_normalization(self):
+#        obj = InventoryData(paths.DENORMALIZED_ALIASES_INVENTORY)
+#        obj.recalculate_inventory()
 
 class TestInventoryGroupFunctionality(TestInventoryBase):
     pass
 
 class TestInventoryHostFunctionality(TestInventoryBase):
-    pass
+    def test_host_rename_mock(self):
+        pass
 
 class TestInventoryIPPoolFunctionality(TestInventoryBase):
     pass
-

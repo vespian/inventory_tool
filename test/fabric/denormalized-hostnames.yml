@@ -1,0 +1,15 @@
+_meta:
+  checksum: c3eb5c1d8bb151a20c055caeb02cb78a9775759aaf75291935e0382fe53a9549
+  version: 1
+groups: {}
+hosts:
+  foobarator.y1.example.com:
+    aliases: []
+    keyvals: {}
+  y1:
+    aliases: []
+    keyvals: {}
+  y1-front.foobar:
+    aliases: []
+    keyvals: {}
+ippools: {}

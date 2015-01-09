@@ -1,0 +1,19 @@
+_meta:
+  checksum: ca9048976eb8c037685c516cb075587a646382d9f32f6c7975716f9ed6640a59
+  version: 1
+groups: {}
+hosts:
+  foobarator.y1:
+    aliases:
+      - gulgulator.example.com
+      - other.example.com
+      - proper
+    keyvals: {}
+  y1:
+    aliases:
+      - other-proper
+    keyvals: {}
+  y1-front.foobar:
+    aliases: []
+    keyvals: {}
+ippools: {}

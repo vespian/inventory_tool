@@ -29,3 +29,5 @@ ORPHANED_CHILD_GORUPS_INVENTORY = op.join(_fabric_base_dir, 'orphaned-child-grou
 ORPHANED_HOSTS_INVENTORY = op.join(_fabric_base_dir, 'orphaned-hosts.yml')
 EMPTY_CHECKSUM_OK_INVENTORY = op.join(_fabric_base_dir, 'empty_checksum_ok.yml')
 EMPTY_CHECKSUM_BAD_INVENTORY = op.join(_fabric_base_dir, 'empty_checksum_bad.yml')
+DENORMALIZED_ALIASES_INVENTORY = op.join(_fabric_base_dir, 'denormalized-aliases.yml')
+DENORMALIZED_HOSTNAMES_INVENTORY = op.join(_fabric_base_dir, 'denormalized-hostnames.yml')
