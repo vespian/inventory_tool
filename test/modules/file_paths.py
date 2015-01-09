@@ -27,3 +27,5 @@ NONOVERLAPPING_IPPOOLS_INVENTORY = op.join(_fabric_base_dir, 'nonoverlapping-ipp
 REFRESHED_IPPOOL_INVENTORY = op.join(_fabric_base_dir, 'refreshed-ippool.yml')
 ORPHANED_CHILD_GORUPS_INVENTORY = op.join(_fabric_base_dir, 'orphaned-child-groups.yml')
 ORPHANED_HOSTS_INVENTORY = op.join(_fabric_base_dir, 'orphaned-hosts.yml')
+EMPTY_CHECKSUM_OK_INVENTORY = op.join(_fabric_base_dir, 'empty_checksum_ok.yml')
+EMPTY_CHECKSUM_BAD_INVENTORY = op.join(_fabric_base_dir, 'empty_checksum_bad.yml')

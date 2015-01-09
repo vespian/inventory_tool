@@ -191,6 +191,12 @@ class TestInventoryRecalculation(unittest.TestCase):
         self.assertListEqual(['guests-y1'], all_guests_children)
         self.assertListEqual(['all-guests', 'front'], all_children)
 
+    def test_is_recalculated_flag(self):
+        obj = InventoryData(paths.EMPTY_CHECKSUM_OK_INVENTORY)
+        self.assertFalse(obj.is_recalculated())
+        obj = InventoryData(paths.EMPTY_CHECKSUM_BAD_INVENTORY)
+        self.assertTrue(obj.is_recalculated())
+
     def test_hosts_cleanup(self):
         pass
 
