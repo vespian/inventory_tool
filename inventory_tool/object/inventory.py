@@ -27,6 +27,15 @@ from inventory_tool.object.host import Host
 from inventory_tool.object.group import Group
 from inventory_tool.validators import KeyWordValidator
 
+# For Python3 < 3.3, ipaddress module is available as an extra module,
+# under a different name:
+try:
+    from ipaddress import ip_address
+    from ipaddress import ip_network
+except ImportError:
+    from ipaddr import IPAddress as ip_address
+    from ipaddr import IPNetwork as ip_network
+
 # Try LibYAML first and if unavailable, fall back to pure Python implementation
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -156,7 +165,7 @@ class InventoryData:
                 for j in range(i+1, size):
                     if self._data["ippools"][tmp[i]].overlaps(
                             self._data["ippools"][tmp[j]]):
-                        msg = "Ippool {0} overlaps with {0}".format(tmp[i], tmp[j])
+                        msg = "Ippool {0} overlaps with {1}".format(tmp[i], tmp[j])
                         raise BadDataException(msg)
 
     def _ippool_refresh(self):
@@ -177,7 +186,7 @@ class InventoryData:
                 for var in KeyWordValidator.get_ipaddress_keywords():
                     ip = self._data['hosts'][host].get_keyval(var, reporting=False)
                     if ip is not None and ip in self._data["ippools"][ippool]:
-                        self._data["ippools"][ippool].allocate(ip)
+                        self._data["ippools"][ippool].allocate(ip_address(ip))
 
     def _groups_cleanup(self):
         """Remove child groups that no longer exist"""
