@@ -22,3 +22,8 @@ _fabric_base_dir = op.join(_main_dir, 'fabric/')
 
 #Configfile location
 TEST_INVENTORY = op.join(_fabric_base_dir, 'hosts-production.yml')
+OVERLAPPING_IPPOOLS_INVENTORY = op.join(_fabric_base_dir, 'overlapping-ippools.yml')
+NONOVERLAPPING_IPPOOLS_INVENTORY = op.join(_fabric_base_dir, 'nonoverlapping-ippools.yml')
+REFRESHED_IPPOOL_INVENTORY = op.join(_fabric_base_dir, 'refreshed-ippool.yml')
+ORPHANED_CHILD_GORUPS_INVENTORY = op.join(_fabric_base_dir, 'orphaned-child-groups.yml')
+ORPHANED_HOSTS_INVENTORY = op.join(_fabric_base_dir, 'orphaned-hosts.yml')

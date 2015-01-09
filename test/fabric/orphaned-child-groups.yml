@@ -1,0 +1,29 @@
+_meta:
+  checksum: 85a9ee43b985cbb47bca968916749425c30a4d00e2457d81158338d92de32fee
+  version: 1
+groups:
+  front:
+    children:
+    - orphaned_childgroup
+    - non-existant-group
+    hosts: []
+    ippools: {}
+  guests-y1:
+    children:
+    - other-missing-childgroup
+    hosts: []
+    ippools: {}
+  all-guests:
+    children:
+    - guests-y1
+    - some-bogus-group
+    hosts: []
+    ippools: {}
+  all:
+    children:
+    - all-guests
+    - front
+    hosts: []
+    ippools: {}
+hosts: {}
+ippools: {}

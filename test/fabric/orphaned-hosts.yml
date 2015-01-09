@@ -1,0 +1,33 @@
+_meta:
+  checksum: ca9048976eb8c037685c516cb075587a646382d9f32f6c7975716f9ed6640a59
+  version: 1
+groups:
+  front:
+    children: []
+    hosts:
+    - y1-front.foobar
+    ippools: {}
+  guests-y1:
+    children: []
+    hosts:
+    - foobarator.y1
+    - y1-front.foobar
+    - lorem-ipsum18
+    ippools: {}
+  hypervisor:
+    children: []
+    hosts:
+    - y1
+    - z12
+    ippools: {}
+hosts:
+  foobarator.y1:
+    aliases: []
+    keyvals: {}
+  y1:
+    aliases: []
+    keyvals: {}
+  y1-front.foobar:
+    aliases: []
+    keyvals: {}
+ippools: {}

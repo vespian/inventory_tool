@@ -16,7 +16,7 @@
 
 # Global imports:
 import mock
-from mock import call
+from mock import call, Mock
 import os
 import yaml
 import sys
@@ -29,6 +29,7 @@ sys.path.append(os.path.abspath(pwd + '/../../modules/'))
 # Local imports:
 import helpers
 import file_paths as paths
+from inventory_tool.object.ippool import IPPool
 from inventory_tool.object.inventory import InventoryData
 from inventory_tool.exception import MalformedInputException, BadDataException, MalformedInputException
 
@@ -133,8 +134,57 @@ class TestInventoryInit(TestInventoryBase):
             proper_host_calls, any_order=True)
 
 
-class TestInventoryRecalculation(TestInventoryBase):
-    pass
+class TestInventoryRecalculation(unittest.TestCase):
+    def setUp(self):
+        self.mocks = {}
+        for patched in ['logging.debug',
+                        'logging.error',
+                        'logging.info',
+                        'logging.warning',
+                        'inventory_tool.object.inventory.KeyWordValidator', ]:
+            patcher = mock.patch(patched)
+            self.mocks[patched] = patcher.start()
+            self.addCleanup(patcher.stop)
+
+        self.mocks['inventory_tool.object.inventory.KeyWordValidator'].get_ipaddress_keywords.return_value = \
+                ['ansible_ssh_host', 'tunnel_ip']
+
+    def test_overlapping_ippools(self):
+        obj = InventoryData(paths.OVERLAPPING_IPPOOLS_INVENTORY)
+
+        with self.assertRaises(BadDataException):
+            obj.recalculate_inventory()
+
+    def test_nonoverlapping_ippools(self):
+        obj = InventoryData(paths.NONOVERLAPPING_IPPOOLS_INVENTORY)
+
+        obj.recalculate_inventory()
+
+    def test_ippool_refresh(self):
+        obj = InventoryData(paths.REFRESHED_IPPOOL_INVENTORY)
+        obj.recalculate_inventory()
+        y1_guests_pool_allocated = obj.ippool_get('y1_guests').get_hash()["allocated"]
+        tunels_pool_allocated = obj.ippool_get('tunels').get_hash()["allocated"]
+        correct_tunnels_pool_allocation = ['192.168.1.125']
+        correct_y1_guests_pool_allocation = ['192.168.125.2', '192.168.125.3']
+        self.assertListEqual(tunels_pool_allocated, correct_tunnels_pool_allocation)
+        self.assertListEqual(y1_guests_pool_allocated, correct_y1_guests_pool_allocation)
+
+    def test_child_groups_cleanup(self):
+        obj = InventoryData(paths.ORPHANED_CHILD_GORUPS_INVENTORY)
+        obj.recalculate_inventory()
+        front_children = obj.group_get("front").get_children()
+        guests_y1_children = obj.group_get("guests-y1").get_children()
+        all_guests_children = obj.group_get("all-guests").get_children()
+        all_children = obj.group_get("all").get_children()
+        self.assertListEqual([], front_children)
+        self.assertListEqual([], guests_y1_children)
+        self.assertListEqual(['guests-y1'], all_guests_children)
+        self.assertListEqual(['all-guests', 'front'], all_children)
+
+    def test_hosts_cleanup(self):
+        pass
+
 
 class TestInventoryGroupFunctionality(TestInventoryBase):
     pass

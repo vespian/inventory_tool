@@ -1,0 +1,14 @@
+_meta:
+  checksum: 0924c5020cb947c7af121841327bc07e1596ee2d8e8898f5b399a1cb22812b7a
+  version: 1
+groups: {}
+hosts: {}
+ippools:
+  tunels:
+    allocated: []
+    network: 192.168.0.0/16
+    reserved: []
+  y1_guests:
+    allocated: []
+    network: 192.168.125.0/24
+    reserved: []

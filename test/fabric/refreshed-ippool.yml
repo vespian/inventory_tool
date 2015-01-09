@@ -1,0 +1,28 @@
+_meta:
+  checksum: 6350daae02be97b833f48d6fbf09a27f4966a56e5731831c495fe7c5a949c715
+  version: 1
+groups: {}
+hosts:
+  foobarator.y1:
+    aliases: []
+    keyvals:
+      ansible_ssh_host: 192.168.125.3
+  y1:
+    aliases: []
+    keyvals:
+      ansible_ssh_host: 1.2.3.4
+      tunnel_ip: 192.168.1.125
+  y1-front.foobar:
+    aliases: []
+    keyvals:
+      ansible_ssh_host: 192.168.125.2
+ippools:
+  tunels:
+    allocated: []
+    network: 192.168.1.0/24
+    reserved: []
+  y1_guests:
+    allocated: []
+    network: 192.168.125.0/24
+    reserved: []
+
