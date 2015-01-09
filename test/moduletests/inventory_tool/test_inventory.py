@@ -71,7 +71,12 @@ class TestInventoryInit(TestInventoryBase):
     def test_inventory_file_missing(self):
         OpenMock = mock.mock_open(read_data = self._file_data)
         def raise_not_found(*unused):
-            raise FileNotFoundError
+            try:
+                error_to_catch = FileNotFoundError
+            except NameError:
+                # Python < 3.4
+                error_to_catch = IOError
+            raise error_to_catch
         OpenMock.side_effect = raise_not_found
         with self.assertRaises(MalformedInputException):
             with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
@@ -141,13 +146,16 @@ class TestInventoryRecalculation(unittest.TestCase):
                         'logging.error',
                         'logging.info',
                         'logging.warning',
+                        'inventory_tool.object.inventory.HostnameParser',
                         'inventory_tool.object.inventory.KeyWordValidator', ]:
             patcher = mock.patch(patched)
             self.mocks[patched] = patcher.start()
             self.addCleanup(patcher.stop)
 
         self.mocks['inventory_tool.object.inventory.KeyWordValidator'].get_ipaddress_keywords.return_value = \
-                ['ansible_ssh_host', 'tunnel_ip']
+            ['ansible_ssh_host', 'tunnel_ip']
+        self.mocks['inventory_tool.object.inventory.HostnameParser'].normalize_hostname = \
+            lambda x: x
 
     def test_overlapping_ippools(self):
         obj = InventoryData(paths.OVERLAPPING_IPPOOLS_INVENTORY)
@@ -160,6 +168,7 @@ class TestInventoryRecalculation(unittest.TestCase):
 
         obj.recalculate_inventory()
 
+    
     def test_ippool_refresh(self):
         obj = InventoryData(paths.REFRESHED_IPPOOL_INVENTORY)
         obj.recalculate_inventory()
