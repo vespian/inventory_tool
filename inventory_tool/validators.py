@@ -85,6 +85,7 @@ class KeyWordValidator():
 
 
 class HostnameParser():
+    _backend_domain = None
     @classmethod
     def normalize_hostname(cls, name):
         """Remove backend domain from hostname
@@ -97,6 +98,8 @@ class HostnameParser():
             unchanged string if hostname was absolute (but in different
             domain), or already relative.
         """
+        if cls._backend_domain is None:
+            raise MalformedInputException("Backend domain has not been set yet")
         if cls._backend_domain in name and name[-1] != '.':
             msg = "{0} contains default backend domain, append '.' to the end " + \
                   "to force absolute dns names"
