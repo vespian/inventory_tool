@@ -211,9 +211,9 @@ class InventoryData:
                 if alias != alias_n:
                     msg = "Non-standard alias detected: {0} vs {1} for host {2}, fixing"
                     logging.warn(msg.format(alias, alias_n, host))
-                    host = self._data['hosts'][host]
-                    host.alias_del(alias)
-                    host.alias_add(alias_n)
+                    host_obj = self._data['hosts'][host]
+                    host_obj.alias_del(alias)
+                    host_obj.alias_add(alias_n)
             host_n = HostnameParser.normalize_hostname(host)
             if host != host_n:
                 msg = "Non-standard hostname detected: {0} vs {1}, renaming"
