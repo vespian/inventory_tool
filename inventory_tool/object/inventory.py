@@ -361,7 +361,7 @@ class InventoryData:
                           "vars": {},
                           "children": self._data["groups"][group].get_children(), }
         # Add special "all group" to which all hosts belong:
-        ret["all"] = {"hosts": list(self._data['hosts']),
+        ret["all"] = {"hosts": sorted(self._data['hosts']),
                       "vars": {},
                       "children": []}
 

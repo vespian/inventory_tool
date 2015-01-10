@@ -92,7 +92,7 @@ class Group:
 
     def get_children(self):
         """Get all subgroups(children) names this group has"""
-        return list(self._children)  # Shallow copy
+        return sorted(self._children)  # Shallow copy
 
     def add_child(self, child):
         """Add a child group to the group
@@ -140,7 +140,7 @@ class Group:
 
     def get_hosts(self):
         """Return all the hosts that belong to this group"""
-        return list(self._hosts)  # Shallow copy
+        return sorted(self._hosts)  # Shallow copy
 
     def add_host(self, host):
         """Add host to group
