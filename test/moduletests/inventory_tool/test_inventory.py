@@ -40,6 +40,7 @@ class TestInventoryBase(unittest.TestCase):
         with open(paths.TEST_INVENTORY, 'r') as fh:
             cls._file_data = fh.read()
 
+class TestInventoryInit(TestInventoryBase):
     def setUp(self):
         self.mocks = {}
         for patched in ['inventory_tool.object.inventory.IPPool',
@@ -55,7 +56,6 @@ class TestInventoryBase(unittest.TestCase):
             self.mocks[patched] = patcher.start()
             self.addCleanup(patcher.stop)
 
-class TestInventoryInit(TestInventoryBase):
     def test_inventory_init(self):
         empty_inventory = {'_meta': {'hostvars': {}},
                            'all': {'children': [],
@@ -138,6 +138,48 @@ class TestInventoryInit(TestInventoryBase):
         self.mocks['inventory_tool.object.inventory.Host'].assert_has_calls(
             proper_host_calls, any_order=True)
 
+class TestInventorySave(TestInventoryBase):
+    def test_save_file(self):
+        OpenMock = mock.mock_open(read_data=self._file_data)
+        with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
+            obj = InventoryData(paths.TMP_INVENTORY)
+
+        SaveMock = mock.mock_open()
+        with mock.patch('inventory_tool.object.inventory.open', SaveMock, create=True):
+            obj.save()
+        SaveMock.assert_called_once_with(paths.TMP_INVENTORY, 'wb')
+        SaveMock.assert_has_calls(call().write(self._file_data))
+
+class TestAnsibleFuncionality(TestInventoryBase):
+    def test_missing_ansible_ssh_host(self):
+        obj = InventoryData(paths.MISSING_ANSIBLE_SSH_HOST_INVENTORY)
+        with self.assertRaises(BadDataException):
+            obj.get_ansible_inventory()
+
+    def test_get_ansible_inventory(self):
+        self.maxDiff = None
+        OpenMock = mock.mock_open(read_data=self._file_data)
+        with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
+            obj = InventoryData(paths.TMP_INVENTORY)
+        correct_data = {'_meta': {'hostvars': {'foobarator.y1': {'aliases': [],
+                                                                 'ansible_ssh_host': '192.168.125.3'},
+                                                'y1': {'aliases': [],
+                                                       'ansible_ssh_host': '1.2.3.4',
+                                                       'tunnel_ip': '192.168.1.125'},
+                                                'y1-front.foobar': {'aliases': ['front-foobar.y1'],
+                                                                    'ansible_ssh_host': '192.168.125.2'}}},
+                        'all': {'children': [],
+                                'hosts': ['foobarator.y1', 'y1', 'y1-front.foobar'],
+                                'vars': {}},
+                        'front': {'children': [], 'hosts': ['y1-front.foobar'], 'vars': {}},
+                        'guests-y1': {'children': [],
+                                        'hosts': ['foobarator.y1', 'y1-front.foobar'],
+                                        'vars': {}},
+                        'hypervisor': {'children': [], 'hosts': ['y1'], 'vars': {}}}
+
+        test_data = obj.get_ansible_inventory()
+
+        self.assertEqual(test_data, correct_data)
 
 class TestInventoryRecalculation(unittest.TestCase):
     def _normalization_func(self, hostname):
@@ -219,12 +261,19 @@ class TestInventoryRecalculation(unittest.TestCase):
     @mock.patch('inventory_tool.object.inventory.InventoryData.host_rename')
     def test_hostname_normalization(self, HostRenameMock):
         obj = InventoryData(paths.DENORMALIZED_HOSTNAMES_INVENTORY)
-        import ipdb; ipdb.set_trace() # BREAKPOINT
         obj.recalculate_inventory()
+        HostRenameMock.assert_called_once_with('foobarator.y1.example.com',
+                                               'foobarator.y1')
 
-#    def test_alias_normalization(self):
-#        obj = InventoryData(paths.DENORMALIZED_ALIASES_INVENTORY)
-#        obj.recalculate_inventory()
+    def test_alias_normalization(self):
+        obj = InventoryData(paths.DENORMALIZED_ALIASES_INVENTORY)
+        obj.recalculate_inventory()
+        foobarator_aliases = obj.host_get("foobarator.y1").get_aliases()
+        y1_aliases = obj.host_get("y1").get_aliases()
+        y1_front_aliases = obj.host_get("y1-front.foobar").get_aliases()
+        self.assertListEqual(foobarator_aliases,['proper', 'gulgulator', 'other'])
+        self.assertListEqual(y1_aliases, ["other-proper"])
+        self.assertListEqual(y1_front_aliases, [])
 
 class TestInventoryGroupFunctionality(TestInventoryBase):
     pass

@@ -1,0 +1,9 @@
+_meta:
+  checksum: 601a0edf80f6aebc5b1897a28729c9a8f1031af1d3e9eb8b74a1d2ec5441851e
+  version: 1
+groups: {}
+hosts:
+  foobarator:
+    aliases: []
+    keyvals: {}
+ippools: {}

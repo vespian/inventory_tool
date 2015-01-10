@@ -100,7 +100,7 @@ class TestGroupChild(TestGroupBase):
     def test_add_new_child(self):
         child = 'a-new-child'
         self.group_obj.add_child(child)
-        self.assertEqual(self._children + [child], self.group_obj.get_children())
+        self.assertEqual(sorted(self._children + [child]), self.group_obj.get_children())
 
     def test_add_existing_child(self):
         with self.assertRaises(MalformedInputException):
@@ -132,7 +132,7 @@ class TestGroupHost(TestGroupBase):
     def test_add_new_host(self):
         host = 'a-new-host'
         self.group_obj.add_host(host)
-        self.assertEqual(self._hosts + [host], self.group_obj.get_hosts())
+        self.assertEqual(sorted(self._hosts + [host]), self.group_obj.get_hosts())
 
     def test_add_existing_host(self):
         with self.assertRaises(MalformedInputException):
