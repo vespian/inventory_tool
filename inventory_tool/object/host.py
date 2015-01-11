@@ -176,11 +176,10 @@ class Host:
         Raises:
             MalformedInputException: alias has not been set yet
         """
-        alias_n = HostnameParser.normalize_hostname(alias)
-        if alias_n in self._aliases:
-            self._aliases.remove(alias_n)
+        if alias in self._aliases:
+            self._aliases.remove(alias)
         else:
-            raise MalformedInputException("Alias {0} has not been ".format(alias_n) +
+            raise MalformedInputException("Alias {0} has not been ".format(alias) +
                                           "assigned to this host yet.")
 
     def get_aliases(self, alias=None, reporting=True):
