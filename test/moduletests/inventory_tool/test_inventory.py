@@ -32,6 +32,18 @@ from inventory_tool.exception import MalformedInputException, BadDataException
 
 
 class TestInventoryBase(unittest.TestCase):
+    def _normalization_func(self, hostname):
+        if hostname == "foobarator.y1.example.com":
+            return "foobarator.y1"
+        elif hostname == 'gulgulator.example.com':
+            return 'gulgulator'
+        elif hostname == 'other.example.com':
+            return 'other'
+        elif hostname == 'y1-front.foobar.example.com':
+            return 'y1-front.foobar'
+        else:
+            return hostname
+
     @classmethod
     def setUpClass(cls):
         with open(paths.TEST_INVENTORY, 'r') as fh:
@@ -43,24 +55,28 @@ class TestInventoryBase(unittest.TestCase):
                         'logging.error',
                         'logging.info',
                         'logging.warning',
+                        'inventory_tool.validators.HostnameParser',
+                        'inventory_tool.validators.KeyWordValidator',
                         ]:
             patcher = mock.patch(patched)
             self.mocks[patched] = patcher.start()
             self.addCleanup(patcher.stop)
+
+        self.mocks['inventory_tool.validators.KeyWordValidator'].get_ipaddress_keywords.return_value = \
+            ['ansible_ssh_host', 'tunnel_ip']
+        self.mocks['inventory_tool.validators.KeyWordValidator'].get_ipnetwork_keywords.return_value = \
+            []
+        self.mocks['inventory_tool.validators.HostnameParser'].normalize_hostname.side_effect = \
+            self._normalization_func
 
 
 class TestInventoryInit(TestInventoryBase):
     def setUp(self):
         super().setUp()
         for patched in ['inventory_tool.object.ippool.IPPool',
-                        'inventory_tool.validators.HostnameParser',
                         'inventory_tool.object.host.Host',
                         'inventory_tool.object.group.Group',
-                        'inventory_tool.validators.KeyWordValidator',
-                        'logging.debug',
-                        'logging.error',
-                        'logging.info',
-                        'logging.warning', ]:
+                        ]:
             patcher = mock.patch(patched)
             self.mocks[patched] = patcher.start()
             self.addCleanup(patcher.stop)
@@ -202,33 +218,6 @@ class TestAnsibleFuncionality(TestInventoryBase):
 
 
 class TestInventoryRecalculation(TestInventoryBase):
-    def _normalization_func(self, hostname):
-        if hostname == "foobarator.y1.example.com":
-            return "foobarator.y1"
-        elif hostname == 'gulgulator.example.com':
-            return 'gulgulator'
-        elif hostname == 'other.example.com':
-            return 'other'
-        else:
-            return hostname
-
-    def setUp(self):
-        super().setUp()
-        for patched in ['logging.debug',
-                        'logging.error',
-                        'logging.info',
-                        'logging.warning',
-                        'inventory_tool.validators.HostnameParser',
-                        'inventory_tool.validators.KeyWordValidator', ]:
-            patcher = mock.patch(patched)
-            self.mocks[patched] = patcher.start()
-            self.addCleanup(patcher.stop)
-
-        self.mocks['inventory_tool.validators.KeyWordValidator'].get_ipaddress_keywords.return_value = \
-            ['ansible_ssh_host', 'tunnel_ip']
-        self.mocks['inventory_tool.validators.HostnameParser'].normalize_hostname.side_effect = \
-            self._normalization_func
-
     def test_overlapping_ippools(self):
         obj = InventoryData(paths.OVERLAPPING_IPPOOLS_INVENTORY)
 
@@ -297,13 +286,89 @@ class TestInventoryRecalculation(TestInventoryBase):
         self.assertListEqual(y1_front_aliases, [])
 
 
+class TestInventoryHostFunctionality(TestInventoryBase):
+    def setUp(self):
+        super().setUp()
+        OpenMock = mock.mock_open(read_data=self._file_data)
+        with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
+            self.obj = InventoryData(paths.TMP_INVENTORY)
+
+    def test_host_to_groups(self):
+        calculated_groups = self.obj.host_to_groups("y1-front.foobar")
+        self.assertCountEqual(['guests-y1', 'front'], calculated_groups)
+        calculated_groups = self.obj.host_to_groups("bulbulator")
+        self.assertListEqual([], calculated_groups)
+
+    def test_inexistant_host_rename_mock(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_rename("bulbulator", "new-bulbulator")
+
+    def test_normalized_host_rename(self):
+        self.obj.host_rename("y1-front.foobar", "y1-lorem.ipsum")
+
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_get("y1-front.foobar")
+
+        host_hash = self.obj.host_get("y1-lorem.ipsum").get_hash()
+        correct_hash = {'aliases': ['front-foobar.y1'],
+                        'keyvals': {'ansible_ssh_host': '192.168.125.2'}
+                        }
+        self.assertEqual(host_hash, correct_hash)
+
+    def test_denormalized_host_rename(self):
+        self.obj.host_rename("y1-front.foobar", "gulgulator.example.com")
+
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_get("y1-front.foobar")
+
+        host_hash = self.obj.host_get("gulgulator").get_hash()
+        correct_hash = {'aliases': ['front-foobar.y1'],
+                        'keyvals': {'ansible_ssh_host': '192.168.125.2'}
+                        }
+        self.assertEqual(host_hash, correct_hash)
+
+    def test_delete_normalized_alias(self):
+        self.obj.host_alias_del("y1-front.foobar", 'front-foobar.y1')
+        host_hash = self.obj.host_get("y1-front.foobar").get_hash()
+        correct_hash = {'aliases': [],
+                        'keyvals': {'ansible_ssh_host': '192.168.125.2'}
+                        }
+        self.assertEqual(host_hash, correct_hash)
+
+    def test_delete_denormalized_alias(self):
+        self.obj.host_alias_del("y1-front.foobar.example.com", 'front-foobar.y1')
+        host_hash = self.obj.host_get("y1-front.foobar").get_hash()
+        correct_hash = {'aliases': [],
+                        'keyvals': {'ansible_ssh_host': '192.168.125.2'}
+                        }
+        self.assertEqual(host_hash, correct_hash)
+
+    def test_delete_missing_alias(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_alias_del("foo-bar", 'foobarator')
+
+    def test_add_alias_to_missing_host(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_alias_add("foo-bar", 'foobarator')
+
+    def test_add_alias_that_duplicates_host(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_alias_add("foobarator.y1", 'y1')
+
+    def test_add_alias_that_duplicates_other_alias(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_alias_add("foobarator.y1", 'front-foobar.y1')
+
+    def test_add_alias(self):
+        self.obj.host_alias_add("foobarator.y1", "some-alias.y1")
+        host_hash = self.obj.host_get("foobarator.y1").get_hash()
+        correct_hash = {'aliases': ['some-alias.y1'],
+                        'keyvals': {'ansible_ssh_host': '192.168.125.3'}
+                        }
+        self.assertEqual(host_hash, correct_hash)
+
 class TestInventoryGroupFunctionality(TestInventoryBase):
     pass
-
-
-class TestInventoryHostFunctionality(TestInventoryBase):
-    def test_host_rename_mock(self):
-        pass
 
 
 class TestInventoryIPPoolFunctionality(TestInventoryBase):
