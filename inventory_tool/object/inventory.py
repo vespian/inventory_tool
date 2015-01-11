@@ -235,8 +235,11 @@ class InventoryData:
         one match.
 
         Args:
-            ip: orphaned ip which should be assigned to ip pool
+            ip: orphaned ip which should be assigned to ip pool, either string
+                or ip_address object
         """
+        if isinstance(ip, str):
+            ip = ip_address(ip)
         for ippool in self._data["ippools"]:
             if ip in self._data["ippools"][ippool]:
                 self._data["ippools"][ippool].allocate(ip)
