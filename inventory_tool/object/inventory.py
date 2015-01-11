@@ -809,7 +809,7 @@ class InventoryData:
                     self._data['hosts'][host_n].alias_add(alias_n)
             else:
                 msg = "There exists host with the same name as an alias {0}."
-                MalformedInputException(msg.format(alias_n))
+                raise MalformedInputException(msg.format(alias_n))
         else:
             raise MalformedInputException("Host {0} does not exist!".format(host_n))
 
