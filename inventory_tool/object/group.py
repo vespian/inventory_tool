@@ -17,7 +17,7 @@
 import logging
 
 from inventory_tool.exception import MalformedInputException
-from inventory_tool.validators import HostnameParser
+import inventory_tool.validators as v
 
 
 class Group:
@@ -135,7 +135,7 @@ class Group:
 
     def has_host(self, host):
         """Check if host belongs to this group"""
-        host_n = HostnameParser.normalize_hostname(host)
+        host_n = v.HostnameParser.normalize_hostname(host)
         return host_n in self._hosts
 
     def get_hosts(self):
@@ -152,7 +152,7 @@ class Group:
             MalformedInputException: host has already been added to the group,
                 or host name is malformed.
         """
-        host_n = HostnameParser.normalize_hostname(host)
+        host_n = v.HostnameParser.normalize_hostname(host)
         if host_n not in self._hosts:
             self._hosts.append(host_n)
         else:
@@ -174,7 +174,7 @@ class Group:
                 specified by "child" parameter has not been assigned to this
                 group yet, or the hostname is malformed.
         """
-        host_n = HostnameParser.normalize_hostname(host)
+        host_n = v.HostnameParser.normalize_hostname(host)
         if host_n in self._hosts:
             self._hosts.remove(host_n)
         elif reporting:

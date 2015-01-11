@@ -18,7 +18,7 @@ import argparse
 import re
 
 from inventory_tool.exception import MalformedInputException
-from inventory_tool.object.ippool import IPPool
+import inventory_tool.object.ippool as i
 
 # For Python3 < 3.3, ipaddress module is available as an extra module,
 # under a different name:
@@ -131,7 +131,7 @@ def get_ippool(string):
         network.
     """
     try:
-        tmp = IPPool(string)
+        tmp = i.IPPool(string)
     except ValueError as e:
         msg = "IPPool network requires proper " + \
               "ipv4/ipv6 network as a value: " + str(e)

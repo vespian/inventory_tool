@@ -144,7 +144,7 @@ class TestGetIpaddr(unittest.TestCase):
             v.get_ipaddr(ip_str)
 
 
-@mock.patch('inventory_tool.validators.IPPool')
+@mock.patch('inventory_tool.object.ippool.IPPool')
 class TestGetIpPool(unittest.TestCase):
     def test_get_good_ippool(self, IPPoolMock):
         ip_str = "1.2.3.0/24"

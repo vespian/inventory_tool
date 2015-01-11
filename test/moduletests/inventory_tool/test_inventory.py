@@ -16,9 +16,8 @@
 
 # Global imports:
 import mock
-from mock import call, Mock
+from mock import call
 import os
-import yaml
 import sys
 import unittest
 
@@ -27,11 +26,9 @@ pwd = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(os.path.abspath(pwd + '/../../modules/'))
 
 # Local imports:
-import helpers
 import file_paths as paths
-from inventory_tool.object.ippool import IPPool
 from inventory_tool.object.inventory import InventoryData
-from inventory_tool.exception import MalformedInputException, BadDataException, MalformedInputException
+from inventory_tool.exception import MalformedInputException, BadDataException
 
 
 class TestInventoryBase(unittest.TestCase):
@@ -40,14 +37,26 @@ class TestInventoryBase(unittest.TestCase):
         with open(paths.TEST_INVENTORY, 'r') as fh:
             cls._file_data = fh.read()
 
-class TestInventoryInit(TestInventoryBase):
     def setUp(self):
         self.mocks = {}
-        for patched in ['inventory_tool.object.inventory.IPPool',
-                        'inventory_tool.object.inventory.HostnameParser',
-                        'inventory_tool.object.inventory.Host',
-                        'inventory_tool.object.inventory.Group',
-                        'inventory_tool.object.inventory.KeyWordValidator',
+        for patched in ['logging.debug',
+                        'logging.error',
+                        'logging.info',
+                        'logging.warning',
+                        ]:
+            patcher = mock.patch(patched)
+            self.mocks[patched] = patcher.start()
+            self.addCleanup(patcher.stop)
+
+
+class TestInventoryInit(TestInventoryBase):
+    def setUp(self):
+        super().setUp()
+        for patched in ['inventory_tool.object.ippool.IPPool',
+                        'inventory_tool.validators.HostnameParser',
+                        'inventory_tool.object.host.Host',
+                        'inventory_tool.object.group.Group',
+                        'inventory_tool.validators.KeyWordValidator',
                         'logging.debug',
                         'logging.error',
                         'logging.info',
@@ -61,7 +70,7 @@ class TestInventoryInit(TestInventoryBase):
                            'all': {'children': [],
                                    'hosts': [],
                                    'vars': {}}}
-        OpenMock = mock.mock_open(read_data = self._file_data)
+        OpenMock = mock.mock_open(read_data=self._file_data)
         with mock.patch('__main__.open', OpenMock, create=True):
             obj = InventoryData(paths.TEST_INVENTORY, initialize=True)
 
@@ -69,7 +78,8 @@ class TestInventoryInit(TestInventoryBase):
         self.assertEqual(empty_inventory, obj.get_ansible_inventory())
 
     def test_inventory_file_missing(self):
-        OpenMock = mock.mock_open(read_data = self._file_data)
+        OpenMock = mock.mock_open(read_data=self._file_data)
+
         def raise_not_found(*unused):
             try:
                 error_to_catch = FileNotFoundError
@@ -79,16 +89,18 @@ class TestInventoryInit(TestInventoryBase):
             raise error_to_catch
         OpenMock.side_effect = raise_not_found
         with self.assertRaises(MalformedInputException):
-            with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
-                obj = InventoryData(paths.TEST_INVENTORY)
+            with mock.patch('inventory_tool.object.inventory.open', OpenMock,
+                            create=True):
+                InventoryData(paths.TEST_INVENTORY)
 
     def test_load_unsupported_file_format(self):
         data = self._file_data
         data = data.replace('version: 1', "version: 0")
         OpenMock = mock.mock_open(read_data=data)
         with self.assertRaises(BadDataException):
-            with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
-                obj = InventoryData(paths.TEST_INVENTORY)
+            with mock.patch('inventory_tool.object.inventory.open', OpenMock,
+                            create=True):
+                InventoryData(paths.TEST_INVENTORY)
 
     @mock.patch("inventory_tool.object.inventory.InventoryData.recalculate_inventory")
     def test_load_bad_checksum(self, RecalculateInventoryMock):
@@ -96,17 +108,18 @@ class TestInventoryInit(TestInventoryBase):
         data = self._file_data
         data = data.replace('ca9048976eb8c037685c516', 'ca9048976eb8c037685c000')
         OpenMock = mock.mock_open(read_data=data)
-        with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
+        with mock.patch('inventory_tool.object.inventory.open', OpenMock,
+                        create=True):
             InventoryData(paths.TEST_INVENTORY)
 
         RecalculateInventoryMock.assert_called_with()
 
-
     def test_load_file_ok(self):
         OpenMock = mock.mock_open(read_data=self._file_data)
 
-        with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
-            obj = InventoryData(paths.TEST_INVENTORY)
+        with mock.patch('inventory_tool.object.inventory.open', OpenMock,
+                        create=True):
+            InventoryData(paths.TEST_INVENTORY)
 
         OpenMock.assert_called_once_with(paths.TEST_INVENTORY, 'rb')
         proper_ippool_calls = [call(network='192.168.125.0/24',
@@ -114,8 +127,8 @@ class TestInventoryInit(TestInventoryBase):
                                     allocated=['192.168.125.2', '192.168.125.3']),
                                call(network='192.168.255.0/24',
                                     reserved=[],
-                                    allocated=[]),]
-        self.mocks['inventory_tool.object.inventory.IPPool'].assert_has_calls(
+                                    allocated=[])]
+        self.mocks['inventory_tool.object.ippool.IPPool'].assert_has_calls(
             proper_ippool_calls, any_order=True)
         proper_group_calls = [call(ippools={'tunnel_ip': 'tunels'},
                                    hosts=['y1'],
@@ -126,7 +139,7 @@ class TestInventoryInit(TestInventoryBase):
                               call(ippools={'ansible_ssh_host': 'y1_guests'},
                                    hosts=['foobarator.y1', 'y1-front.foobar'],
                                    children=[])]
-        self.mocks['inventory_tool.object.inventory.Group'].assert_has_calls(
+        self.mocks['inventory_tool.object.group.Group'].assert_has_calls(
             proper_group_calls, any_order=True)
         proper_host_calls = [call(keyvals={'ansible_ssh_host': '1.2.3.4',
                                            'tunnel_ip': '192.168.1.125'},
@@ -135,8 +148,9 @@ class TestInventoryInit(TestInventoryBase):
                                   aliases=[]),
                              call(keyvals={'ansible_ssh_host': '192.168.125.2'},
                                   aliases=['front-foobar.y1'])]
-        self.mocks['inventory_tool.object.inventory.Host'].assert_has_calls(
+        self.mocks['inventory_tool.object.host.Host'].assert_has_calls(
             proper_host_calls, any_order=True)
+
 
 class TestInventorySave(TestInventoryBase):
     def test_save_file(self):
@@ -149,6 +163,7 @@ class TestInventorySave(TestInventoryBase):
             obj.save()
         SaveMock.assert_called_once_with(paths.TMP_INVENTORY, 'wb')
         SaveMock.assert_has_calls(call().write(self._file_data))
+
 
 class TestAnsibleFuncionality(TestInventoryBase):
     def test_missing_ansible_ssh_host(self):
@@ -163,25 +178,30 @@ class TestAnsibleFuncionality(TestInventoryBase):
             obj = InventoryData(paths.TMP_INVENTORY)
         correct_data = {'_meta': {'hostvars': {'foobarator.y1': {'aliases': [],
                                                                  'ansible_ssh_host': '192.168.125.3'},
-                                                'y1': {'aliases': [],
-                                                       'ansible_ssh_host': '1.2.3.4',
-                                                       'tunnel_ip': '192.168.1.125'},
-                                                'y1-front.foobar': {'aliases': ['front-foobar.y1'],
-                                                                    'ansible_ssh_host': '192.168.125.2'}}},
+                                               'y1': {'aliases': [],
+                                                      'ansible_ssh_host': '1.2.3.4',
+                                                      'tunnel_ip': '192.168.1.125'},
+                                               'y1-front.foobar': {'aliases': ['front-foobar.y1'],
+                                                                   'ansible_ssh_host': '192.168.125.2'}}},
                         'all': {'children': [],
                                 'hosts': ['foobarator.y1', 'y1', 'y1-front.foobar'],
                                 'vars': {}},
-                        'front': {'children': [], 'hosts': ['y1-front.foobar'], 'vars': {}},
+                        'front': {'children': [],
+                                  'hosts': ['y1-front.foobar'],
+                                  'vars': {}},
                         'guests-y1': {'children': [],
-                                        'hosts': ['foobarator.y1', 'y1-front.foobar'],
-                                        'vars': {}},
-                        'hypervisor': {'children': [], 'hosts': ['y1'], 'vars': {}}}
+                                      'hosts': ['foobarator.y1', 'y1-front.foobar'],
+                                      'vars': {}},
+                        'hypervisor': {'children': [],
+                                       'hosts': ['y1'],
+                                       'vars': {}}}
 
         test_data = obj.get_ansible_inventory()
 
         self.assertEqual(test_data, correct_data)
 
-class TestInventoryRecalculation(unittest.TestCase):
+
+class TestInventoryRecalculation(TestInventoryBase):
     def _normalization_func(self, hostname):
         if hostname == "foobarator.y1.example.com":
             return "foobarator.y1"
@@ -193,20 +213,20 @@ class TestInventoryRecalculation(unittest.TestCase):
             return hostname
 
     def setUp(self):
-        self.mocks = {}
+        super().setUp()
         for patched in ['logging.debug',
                         'logging.error',
                         'logging.info',
                         'logging.warning',
-                        'inventory_tool.object.inventory.HostnameParser',
-                        'inventory_tool.object.inventory.KeyWordValidator', ]:
+                        'inventory_tool.validators.HostnameParser',
+                        'inventory_tool.validators.KeyWordValidator', ]:
             patcher = mock.patch(patched)
             self.mocks[patched] = patcher.start()
             self.addCleanup(patcher.stop)
 
-        self.mocks['inventory_tool.object.inventory.KeyWordValidator'].get_ipaddress_keywords.return_value = \
+        self.mocks['inventory_tool.validators.KeyWordValidator'].get_ipaddress_keywords.return_value = \
             ['ansible_ssh_host', 'tunnel_ip']
-        self.mocks['inventory_tool.object.inventory.HostnameParser'].normalize_hostname.side_effect = \
+        self.mocks['inventory_tool.validators.HostnameParser'].normalize_hostname.side_effect = \
             self._normalization_func
 
     def test_overlapping_ippools(self):
@@ -256,7 +276,7 @@ class TestInventoryRecalculation(unittest.TestCase):
         hypervisor_hosts = obj.group_get("hypervisor").get_hosts()
         self.assertListEqual(guests_y1_hosts, ['foobarator.y1', 'y1-front.foobar'])
         self.assertListEqual(front_hosts, ['y1-front.foobar'])
-        self.assertListEqual(hypervisor_hosts, ['y1',])
+        self.assertListEqual(hypervisor_hosts, ['y1'])
 
     @mock.patch('inventory_tool.object.inventory.InventoryData.host_rename')
     def test_hostname_normalization(self, HostRenameMock):
@@ -271,16 +291,20 @@ class TestInventoryRecalculation(unittest.TestCase):
         foobarator_aliases = obj.host_get("foobarator.y1").get_aliases()
         y1_aliases = obj.host_get("y1").get_aliases()
         y1_front_aliases = obj.host_get("y1-front.foobar").get_aliases()
-        self.assertListEqual(foobarator_aliases,['proper', 'gulgulator', 'other'])
+        self.assertListEqual(foobarator_aliases,
+                             ['proper', 'gulgulator', 'other'])
         self.assertListEqual(y1_aliases, ["other-proper"])
         self.assertListEqual(y1_front_aliases, [])
+
 
 class TestInventoryGroupFunctionality(TestInventoryBase):
     pass
 
+
 class TestInventoryHostFunctionality(TestInventoryBase):
     def test_host_rename_mock(self):
         pass
+
 
 class TestInventoryIPPoolFunctionality(TestInventoryBase):
     pass

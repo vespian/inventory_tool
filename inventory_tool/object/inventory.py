@@ -20,12 +20,11 @@ import hashlib
 import logging
 
 import inventory_tool
+import inventory_tool.object.group as g
+import inventory_tool.object.host as h
+import inventory_tool.object.ippool as i
+import inventory_tool.validators as v
 from inventory_tool.exception import BadDataException, MalformedInputException
-from inventory_tool.object.ippool import IPPool
-from inventory_tool.validators import HostnameParser
-from inventory_tool.object.host import Host
-from inventory_tool.object.group import Group
-from inventory_tool.validators import KeyWordValidator
 
 # For Python3 < 3.3, ipaddress module is available as an extra module,
 # under a different name:
@@ -108,21 +107,21 @@ class InventoryData:
             logging.debug("Parsing ippools into objects")
             for ippool in self._data["ippools"]:
                 tmp = self._data["ippools"][ippool]
-                obj = IPPool(network=tmp["network"],
+                obj = i.IPPool(network=tmp["network"],
                              allocated=tmp["allocated"],
                              reserved=tmp["reserved"],)
                 self._data["ippools"][ippool] = obj
             # Parse Hosts into objects:
             logging.debug("Parsing hosts into objects")
             for host in self._data["hosts"]:
-                self._data["hosts"][host] = Host(
+                self._data["hosts"][host] = h.Host(
                     aliases=self._data["hosts"][host]['aliases'],
                     keyvals=self._data["hosts"][host]['keyvals'],
                     )
             # Parse Groups into objects:
             logging.debug("Parsing groups into objects")
             for group in self._data["groups"]:
-                self._data["groups"][group] = Group(
+                self._data["groups"][group] = g.Group(
                     hosts=self._data["groups"][group]['hosts'],
                     children=self._data["groups"][group]['children'],
                     ippools=self._data["groups"][group]['ippools'],
@@ -183,7 +182,7 @@ class InventoryData:
         for ippool in self._data["ippools"]:  # ~100
             self._data["ippools"][ippool].release_all()
             for host in self._data["hosts"]:  # ~1000
-                for var in KeyWordValidator.get_ipaddress_keywords():
+                for var in v.KeyWordValidator.get_ipaddress_keywords():
                     ip = self._data['hosts'][host].get_keyval(var, reporting=False)
                     if ip is not None and ip in self._data["ippools"][ippool]:
                         self._data["ippools"][ippool].allocate(ip_address(ip))
@@ -207,17 +206,17 @@ class InventoryData:
         logging.info("Normalizing host names and aliases")
         for host in self._data['hosts']:
             for alias in self._data['hosts'][host].get_aliases():
-                alias_n = HostnameParser.normalize_hostname(alias)
+                alias_n = v.HostnameParser.normalize_hostname(alias)
                 if alias != alias_n:
                     msg = "Non-standard alias detected: {0} vs {1} for host {2}, fixing"
-                    logging.warn(msg.format(alias, alias_n, host))
+                    logging.warning(msg.format(alias, alias_n, host))
                     host_obj = self._data['hosts'][host]
                     host_obj.alias_del(alias)
                     host_obj.alias_add(alias_n)
-            host_n = HostnameParser.normalize_hostname(host)
+            host_n = v.HostnameParser.normalize_hostname(host)
             if host != host_n:
                 msg = "Non-standard hostname detected: {0} vs {1}, renaming"
-                logging.warn(msg.format(host, host_n))
+                logging.warning(msg.format(host, host_n))
                 self.host_rename(host, host_n)
 
         logging.info("Cleaning up stale hosts if any")
@@ -351,8 +350,8 @@ class InventoryData:
                 raise BadDataException(msg)
             ret["_meta"]["hostvars"][host] = {}
             for key in keyvals:
-                if key in KeyWordValidator.get_ipaddress_keywords() + \
-                        KeyWordValidator.get_ipnetwork_keywords():
+                if key in v.KeyWordValidator.get_ipaddress_keywords() + \
+                        v.KeyWordValidator.get_ipnetwork_keywords():
                     ret["_meta"]["hostvars"][host][key] = str(keyvals[key])
                 else:
                     ret["_meta"]["hostvars"][host][key] = keyvals[key]
@@ -502,7 +501,7 @@ class InventoryData:
             MalformedInputException: group with such name already exists
         """
         if group not in self._data['groups']:
-            self._data['groups'][group] = Group()
+            self._data['groups'][group] = g.Group()
         else:
             raise MalformedInputException("Group {0} already exists!".format(group))
 
@@ -600,7 +599,7 @@ class InventoryData:
                 host name is malformed.
         """
         if group in self._data['groups']:
-            host_n = HostnameParser.normalize_hostname(host)
+            host_n = v.HostnameParser.normalize_hostname(host)
             if host_n in self._data['hosts']:
                 self._data['groups'][group].add_host(host_n)
             else:
@@ -642,7 +641,7 @@ class InventoryData:
                 malformed.
         """
         if host is not None:
-            host_n = HostnameParser.normalize_hostname(host)
+            host_n = v.HostnameParser.normalize_hostname(host)
             if host_n not in self._data['hosts']:
                 msg = "Host {0} does not exist".format(host_n)
                 raise MalformedInputException(msg)
@@ -665,13 +664,13 @@ class InventoryData:
             MalformedInputException: host with that name already exists, or is
                 malformed
         """
-        host_n = HostnameParser.normalize_hostname(host)
+        host_n = v.HostnameParser.normalize_hostname(host)
         if host_n not in self._data['hosts']:
             for tmp in self._data['hosts']:
                 if self._data['hosts'][tmp].get_aliases(alias=host_n, reporting=False):
                     msg = "Host {0} already has alias with the name of new host"
                     raise MalformedInputException(msg.format(tmp))
-            self._data['hosts'][host_n] = Host()
+            self._data['hosts'][host_n] = h.Host()
         else:
             raise MalformedInputException("Host {0} already exist!".format(host_n))
 
@@ -688,14 +687,14 @@ class InventoryData:
             MalformedInputException: host with given name does not exists, or is
                 malformed
         """
-        host_n = HostnameParser.normalize_hostname(host)
+        host_n = v.HostnameParser.normalize_hostname(host)
         if host_n in self._data['hosts']:
             # Remove the host from all groups:
             for group in self._data['groups']:
                 self._data['groups'][group].del_host(host_n, reporting=False)
             # Remove host's IP from all ip pools:
             for ippool in self._data["ippools"]:
-                for var in KeyWordValidator.get_ipaddress_keywords():
+                for var in v.KeyWordValidator.get_ipaddress_keywords():
                     ip = self._data['hosts'][host].get_keyval(var, reporting=False)
                     if ip is not None and ip in self._data["ippools"][ippool]:
                         self._data["ippools"][ippool].release(ip)
@@ -724,10 +723,10 @@ class InventoryData:
         Raises:
             MalformedInputException: provided data does not make sense.
         """
-        host_n = HostnameParser.normalize_hostname(host)
+        host_n = v.HostnameParser.normalize_hostname(host)
         if host_n in self._data['hosts']:
             for keyval in data:
-                if KeyWordValidator.is_ipaddress_keyword(keyval["key"]):
+                if v.KeyWordValidator.is_ipaddress_keyword(keyval["key"]):
                     # First, lets deallocate old ip (if any):
                     ip = self._data['hosts'][host_n].get_keyval(keyval["key"],
                                                                 reporting=False)
@@ -775,10 +774,10 @@ class InventoryData:
             MalformedInputException: host or key with given name does not exists,
                 or host is malformed
         """
-        host_n = HostnameParser.normalize_hostname(host)
+        host_n = v.HostnameParser.normalize_hostname(host)
         if host_n in self._data['hosts']:
             for key in keys:
-                if KeyWordValidator.is_ipaddress_keyword(key):
+                if v.KeyWordValidator.is_ipaddress_keyword(key):
                     # First, lets deallocate old ip (if any):
                     ip = self._data['hosts'][host_n].get_keyval(key, reporting=False)
                     if ip is not None:
@@ -798,9 +797,9 @@ class InventoryData:
                 does not exists, or a host/alias with such name already exists,
                 or host/alias are malformed.
         """
-        host_n = HostnameParser.normalize_hostname(host)
+        host_n = v.HostnameParser.normalize_hostname(host)
         if host_n in self._data['hosts']:
-            alias_n = HostnameParser.normalize_hostname(alias)
+            alias_n = v.HostnameParser.normalize_hostname(alias)
             if alias_n not in self._data['hosts']:
                 for tmp in self._data['hosts']:
                     if self._data['hosts'][tmp].get_aliases(alias_n, reporting=False):
@@ -824,7 +823,7 @@ class InventoryData:
             MalformedInputException: either alias or host does not exist, or are
                 malformed.
         """
-        host_n = HostnameParser.normalize_hostname(host)
+        host_n = v.HostnameParser.normalize_hostname(host)
         if host_n in self._data['hosts']:
             self._data['hosts'][host_n].alias_del(alias)
         else:
@@ -845,7 +844,7 @@ class InventoryData:
         if host_old not in self._data['hosts']:
             msg = "Host {0} does not exist, and thus cannot be renamed"
             raise MalformedInputException(msg.format(host_old))
-        host_new_n = HostnameParser.normalize_hostname(host_new)
+        host_new_n = v.HostnameParser.normalize_hostname(host_new)
 
         # First, lets rename it in "hosts" hash:
         self._data['hosts'][host_new_n] = self._data['hosts'].pop(host_old)

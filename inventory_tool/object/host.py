@@ -16,7 +16,7 @@
 
 import re
 
-from inventory_tool.validators import KeyWordValidator, HostnameParser
+import inventory_tool.validators as v
 from inventory_tool.exception import BadDataException, MalformedInputException
 
 # For Python3 < 3.3, ipaddress module is available as an extra module,
@@ -55,9 +55,9 @@ class Host:
         self._keyvals = {}
         for key in keyvals:
             try:
-                if KeyWordValidator.is_ipaddress_keyword(key):
+                if v.KeyWordValidator.is_ipaddress_keyword(key):
                     self._keyvals[key] = ip_address(keyvals[key])
-                elif KeyWordValidator.is_ipnetwork_keyword(key):
+                elif v.KeyWordValidator.is_ipnetwork_keyword(key):
                     self._keyvals[key] = ip_network(keyvals[key])
                 else:
                     self._keyvals[key] = keyvals[key]
@@ -160,7 +160,7 @@ class Host:
         Raises:
             MalformedInputException: alias is already present in the aliases list
         """
-        alias_n = HostnameParser.normalize_hostname(alias)
+        alias_n = v.HostnameParser.normalize_hostname(alias)
         if alias_n not in self._aliases:
             self._aliases.append(alias_n)
         else:
