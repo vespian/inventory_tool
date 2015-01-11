@@ -33,3 +33,5 @@ DENORMALIZED_ALIASES_INVENTORY = op.join(_fabric_base_dir, 'denormalized-aliases
 DENORMALIZED_HOSTNAMES_INVENTORY = op.join(_fabric_base_dir, 'denormalized-hostnames.yml')
 TMP_INVENTORY = op.join(_fabric_base_dir, 'tmp.yml')
 MISSING_ANSIBLE_SSH_HOST_INVENTORY = op.join(_fabric_base_dir, 'missing_ansible_ssh_host.yml')
+HOSTVARS_INVENTORY = op.join(_fabric_base_dir, 'hostvars.yml')
+IPADDR_AUTOALLOCATION_INVENTORY = op.join(_fabric_base_dir, 'ipaddr-autoallocation.yml')

@@ -1,0 +1,22 @@
+---
+_meta:
+  checksum: ac41a9a834976efb5d036d363e834608c66ede91a92d8046bb0a2009964e8393
+  version: 1
+groups: {}
+hosts:
+  foobarator.y1:
+    aliases: []
+    keyvals:
+      ansible_ssh_host: 192.168.125.3
+      some_key: some_val
+      some_other_key: 12345
+  y1:
+    aliases: []
+    keyvals:
+      ansible_ssh_host: 1.2.3.4
+      tunnel_ip: 192.168.1.125
+  y1-front.foobar:
+    aliases: []
+    keyvals:
+      ansible_ssh_host: 192.168.125.2
+ippools: {}

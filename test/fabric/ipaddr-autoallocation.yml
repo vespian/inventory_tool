@@ -1,0 +1,19 @@
+_meta:
+  checksum: 82fee487408c847bb878a8e113302097e619a81ad40a6230f4cf29e62faf287f
+  version: 1
+groups:
+  front:
+    children: []
+    hosts:
+    - y1-front.foobar
+    ippools:
+      tunnel_ip: tunels
+hosts:
+  y1-front.foobar:
+    aliases: []
+    keyvals: {}
+ippools:
+  tunels:
+    allocated: []
+    network: 192.168.255.0/24
+    reserved: []

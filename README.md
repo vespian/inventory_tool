@@ -286,7 +286,7 @@ script.
     ```
     ./hosts-production.py host --host-name y1-front.foobar --add --alias-add front-foobar.y1 --var-set ansible_ssh_host --group-add guests-y1 front
     ./hosts-production.py host --host-name foobarator.y1 --add --var-set ansible_ssh_host --group-add guests-y1
-    ./hosts-production.py host --host-name y1 --add --var-set tunnel_ip:192.168.1.125 ansible_ssh_host:1.2.3.4 --group-add hypervisor
+    ./hosts-production.py host --host-name y1 --add --var-set tunnel_ip:192.168.255.125 ansible_ssh_host:1.2.3.4 --group-add hypervisor
 
     ```
 * Lets see how our inventory looks like now
@@ -336,7 +336,7 @@ script.
     Aliases:
         <None>
     Host variables:
-        tunnel_ip:192.168.1.125
+        tunnel_ip:192.168.255.125
         ansible_ssh_host:1.2.3.4
 
     #### y1-front.foobar
@@ -380,7 +380,7 @@ script.
         aliases: []
         keyvals:
         ansible_ssh_host: 1.2.3.4
-        tunnel_ip: 192.168.1.125
+        tunnel_ip: 192.168.255.125
     y1-front.foobar:
         aliases:
         - front-foobar.y1
@@ -414,7 +414,7 @@ script.
                 "y1": {
                     "aliases": [],
                     "ansible_ssh_host": "1.2.3.4",
-                    "tunnel_ip": "192.168.1.125"
+                    "tunnel_ip": "192.168.255.125"
                 },
                 "y1-front.foobar": {
                     "aliases": [

@@ -32,6 +32,10 @@ from inventory_tool.exception import MalformedInputException, BadDataException
 
 
 class TestInventoryBase(unittest.TestCase):
+
+    _ipaddr_keywords = ['ansible_ssh_host', 'tunnel_ip', 'var_without_pool']
+    _ipnetwork_keywords = []
+
     def _normalization_func(self, hostname):
         if hostname == "foobarator.y1.example.com":
             return "foobarator.y1"
@@ -62,10 +66,16 @@ class TestInventoryBase(unittest.TestCase):
             self.mocks[patched] = patcher.start()
             self.addCleanup(patcher.stop)
 
+
+
         self.mocks['inventory_tool.validators.KeyWordValidator'].get_ipaddress_keywords.return_value = \
-            ['ansible_ssh_host', 'tunnel_ip']
+            self._ipaddr_keywords
         self.mocks['inventory_tool.validators.KeyWordValidator'].get_ipnetwork_keywords.return_value = \
-            []
+            self._ipnetwork_keywords
+        self.mocks['inventory_tool.validators.KeyWordValidator'].is_ipaddress_keyword.side_effect = \
+            lambda x: x in self._ipaddr_keywords
+        self.mocks['inventory_tool.validators.KeyWordValidator'].is_ipnetwork_keyword.side_effect = \
+            lambda x: x in self._ipnetwork_keywords
         self.mocks['inventory_tool.validators.HostnameParser'].normalize_hostname.side_effect = \
             self._normalization_func
 
@@ -122,7 +132,7 @@ class TestInventoryInit(TestInventoryBase):
     def test_load_bad_checksum(self, RecalculateInventoryMock):
         # mock out inventory recalculation
         data = self._file_data
-        data = data.replace('ca9048976eb8c037685c516', 'ca9048976eb8c037685c000')
+        data = data.replace('6119b68e3bc8d569568a93', '6119b68e3bc8d569568a16')
         OpenMock = mock.mock_open(read_data=data)
         with mock.patch('inventory_tool.object.inventory.open', OpenMock,
                         create=True):
@@ -143,7 +153,7 @@ class TestInventoryInit(TestInventoryBase):
                                     allocated=['192.168.125.2', '192.168.125.3']),
                                call(network='192.168.255.0/24',
                                     reserved=[],
-                                    allocated=[])]
+                                    allocated=['192.168.255.125'])]
         self.mocks['inventory_tool.object.ippool.IPPool'].assert_has_calls(
             proper_ippool_calls, any_order=True)
         proper_group_calls = [call(ippools={'tunnel_ip': 'tunels'},
@@ -158,7 +168,7 @@ class TestInventoryInit(TestInventoryBase):
         self.mocks['inventory_tool.object.group.Group'].assert_has_calls(
             proper_group_calls, any_order=True)
         proper_host_calls = [call(keyvals={'ansible_ssh_host': '1.2.3.4',
-                                           'tunnel_ip': '192.168.1.125'},
+                                           'tunnel_ip': '192.168.255.125'},
                                   aliases=[]),
                              call(keyvals={'ansible_ssh_host': '192.168.125.3'},
                                   aliases=[]),
@@ -178,10 +188,13 @@ class TestInventorySave(TestInventoryBase):
         with mock.patch('inventory_tool.object.inventory.open', SaveMock, create=True):
             obj.save()
         SaveMock.assert_called_once_with(paths.TMP_INVENTORY, 'wb')
-        SaveMock.assert_has_calls(call().write(self._file_data))
+        # Comparing multi-line text is tricky:
+        handle = SaveMock()
+        self.maxDiff = None
+        self.assertMultiLineEqual(self._file_data, handle.write.call_args[0][0])
 
 
-class TestAnsibleFuncionality(TestInventoryBase):
+class TestInventoryAnsibleFuncionality(TestInventoryBase):
     def test_missing_ansible_ssh_host(self):
         obj = InventoryData(paths.MISSING_ANSIBLE_SSH_HOST_INVENTORY)
         with self.assertRaises(BadDataException):
@@ -196,7 +209,7 @@ class TestAnsibleFuncionality(TestInventoryBase):
                                                                  'ansible_ssh_host': '192.168.125.3'},
                                                'y1': {'aliases': [],
                                                       'ansible_ssh_host': '1.2.3.4',
-                                                      'tunnel_ip': '192.168.1.125'},
+                                                      'tunnel_ip': '192.168.255.125'},
                                                'y1-front.foobar': {'aliases': ['front-foobar.y1'],
                                                                    'ansible_ssh_host': '192.168.125.2'}}},
                         'all': {'children': [],
@@ -293,6 +306,8 @@ class TestInventoryHostFunctionality(TestInventoryBase):
         with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
             self.obj = InventoryData(paths.TMP_INVENTORY)
 
+
+class TestInventoryHostMiscFunctionality(TestInventoryHostFunctionality):
     def test_host_to_groups(self):
         calculated_groups = self.obj.host_to_groups("y1-front.foobar")
         self.assertCountEqual(['guests-y1', 'front'], calculated_groups)
@@ -327,6 +342,8 @@ class TestInventoryHostFunctionality(TestInventoryBase):
                         }
         self.assertEqual(host_hash, correct_hash)
 
+
+class TestInventoryHostAliasFunctionality(TestInventoryHostFunctionality):
     def test_delete_normalized_alias(self):
         self.obj.host_alias_del("y1-front.foobar", 'front-foobar.y1')
         host_hash = self.obj.host_get("y1-front.foobar").get_hash()
@@ -366,6 +383,134 @@ class TestInventoryHostFunctionality(TestInventoryBase):
                         'keyvals': {'ansible_ssh_host': '192.168.125.3'}
                         }
         self.assertEqual(host_hash, correct_hash)
+
+
+class TestInventoryHostKeyvalFunctionality(TestInventoryHostFunctionality):
+    def test_plain_keyval_removal(self):
+        # FIXME - this can be done without introducing another fabric file,
+        # but hosts-production needs to be changed and with it a lot of tests.
+        obj = InventoryData(paths.HOSTVARS_INVENTORY)
+        obj.host_del_vars('foobarator.y1',
+                          ['some_key'])
+
+        host_hash = obj.host_get("foobarator.y1").get_hash()
+        correct_hash = {'aliases': [],
+                        'keyvals': {'ansible_ssh_host': '192.168.125.3',
+                                    "some_other_key": "12345"
+                                    }
+                        }
+        self.assertEqual(host_hash, correct_hash)
+
+    def test_plain_keyval_removal_from_missing_host(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_del_vars("lorem-ipsum", 'some_keyval')
+
+    def test_plain_keyval_removal_which_does_not_exists(self):
+        obj = InventoryData(paths.HOSTVARS_INVENTORY)
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_del_vars('foobarator.y1',
+                                   ['some_key', 'inexistant_keyval'])
+
+        # Other keyvals should not be removed if at least one keyval does not
+        # exists:
+        host_hash = obj.host_get("foobarator.y1").get_hash()
+        correct_hash = {'aliases': [],
+                        'keyvals': {'ansible_ssh_host': '192.168.125.3',
+                                    'some_key': 'some_val',
+                                    "some_other_key": "12345"
+                                    }
+                        }
+        self.assertEqual(host_hash, correct_hash)
+
+    def test_plain_keyval_set(self):
+        self.obj.host_set_vars('y1', [{"key": 'some_keyval', "val": "some_val"}])
+
+        host_hash = self.obj.host_get("y1").get_hash()
+        correct_hash = {'aliases': [],
+                        'keyvals': {'ansible_ssh_host': '1.2.3.4',
+                                    'tunnel_ip': '192.168.255.125',
+                                    'some_keyval': "some_val"
+                                    }
+                        }
+        self.assertEqual(host_hash, correct_hash)
+
+    def test_plain_keyval_set_for_inexistant_host(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_set_vars("lorem-ipsum", [{"key": 'some_keyval',
+                                                   "val": "some_val"}])
+
+    def test_ipaddr_keyval_removal(self):
+        self.obj.host_del_vars('y1',
+                               ['tunnel_ip'])
+
+        # Check if keyval was removed:
+        host_hash = self.obj.host_get("y1").get_hash()
+        correct_hash = {'aliases': [],
+                        'keyvals': {'ansible_ssh_host': '1.2.3.4',
+                                    }
+                        }
+        self.assertEqual(host_hash, correct_hash)
+
+        # And if it was deallocated:
+        ippool_hash = self.obj.ippool_get("tunels").get_hash()
+        self.assertListEqual([], ippool_hash['allocated'])
+
+    def test_ipaddr_keyval_set_without_autoallocation(self):
+        self.obj.host_set_vars('foobarator.y1', [{"key": 'tunnel_ip', "val": "1.2.3.20"}])
+
+        host_hash = self.obj.host_get("foobarator.y1").get_hash()
+        correct_hash = {'aliases': [],
+                        'keyvals': {'ansible_ssh_host': '192.168.125.3',
+                                    'tunnel_ip': '1.2.3.20',
+                                    }
+                        }
+        self.assertEqual(host_hash, correct_hash)
+
+    def test_ipaddr_keyval_set_with_autoallocation(self):
+        obj = InventoryData(paths.IPADDR_AUTOALLOCATION_INVENTORY)
+        obj.host_set_vars('y1-front.foobar', [{"key": 'tunnel_ip', "val": None}])
+
+        host_hash = obj.host_get("y1-front.foobar").get_hash()
+        correct_hash = {'aliases': [],
+                        'keyvals': {'tunnel_ip': '192.168.255.1'}
+                        }
+        self.assertEqual(host_hash, correct_hash)
+
+    def test_ipaddr_keyval_set_with_broken_autoallocation(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_set_vars('foobarator.y1', [{"key": 'var_without_pool',
+                                                      "val": None}])
+
+    def test_ipaddr_keyval_change_without_autoallocation(self):
+        self.obj.host_set_vars('y1', [{"key": 'tunnel_ip', "val": "192.168.255.123"}])
+
+        # Check if keyval was removed:
+        host_hash = self.obj.host_get("y1").get_hash()
+        correct_hash = {'aliases': [],
+                        'keyvals': {'ansible_ssh_host': '1.2.3.4',
+                                    'tunnel_ip': '192.168.255.123',
+                                    }
+                        }
+        self.assertEqual(host_hash, correct_hash)
+        ippool_hash = self.obj.ippool_get("tunels").get_hash()
+        self.assertListEqual(ippool_hash['allocated'], ["192.168.255.123"])
+
+    def test_ipaddr_keyval_change_with_autoallocation(self):
+        self.obj.host_set_vars('y1', [{"key": 'tunnel_ip', "val": None}])
+
+        # Check if keyval was removed:
+        host_hash = self.obj.host_get("y1").get_hash()
+        correct_hash = {'aliases': [],
+                        'keyvals': {'ansible_ssh_host': '1.2.3.4',
+                                    'tunnel_ip': '192.168.255.1',
+                                    }
+                        }
+        self.assertEqual(host_hash, correct_hash)
+        ippool_hash = self.obj.ippool_get("tunels").get_hash()
+        self.assertListEqual(ippool_hash['allocated'], ["192.168.255.1"])
+
+
+
 
 class TestInventoryGroupFunctionality(TestInventoryBase):
     pass

@@ -1,5 +1,5 @@
 _meta:
-  checksum: ca9048976eb8c037685c516cb075587a646382d9f32f6c7975716f9ed6640a59
+  checksum: 6119b68e3bc8d569568a93d10d4e790e0662f6724d167a6bb033d507e819f72a
   version: 1
 groups:
   front:
@@ -29,7 +29,7 @@ hosts:
     aliases: []
     keyvals:
       ansible_ssh_host: 1.2.3.4
-      tunnel_ip: 192.168.1.125
+      tunnel_ip: 192.168.255.125
   y1-front.foobar:
     aliases:
     - front-foobar.y1
@@ -37,7 +37,8 @@ hosts:
       ansible_ssh_host: 192.168.125.2
 ippools:
   tunels:
-    allocated: []
+    allocated:
+    - 192.168.255.125
     network: 192.168.255.0/24
     reserved: []
   y1_guests:
