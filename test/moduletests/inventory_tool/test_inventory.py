@@ -66,8 +66,6 @@ class TestInventoryBase(unittest.TestCase):
             self.mocks[patched] = patcher.start()
             self.addCleanup(patcher.stop)
 
-
-
         self.mocks['inventory_tool.validators.KeyWordValidator'].get_ipaddress_keywords.return_value = \
             self._ipaddr_keywords
         self.mocks['inventory_tool.validators.KeyWordValidator'].get_ipnetwork_keywords.return_value = \
@@ -249,8 +247,8 @@ class TestInventoryRecalculation(TestInventoryBase):
         tunels_pool_allocated = obj.ippool_get('tunels').get_hash()["allocated"]
         correct_tunnels_pool_allocation = ['192.168.1.125']
         correct_y1_guests_pool_allocation = ['192.168.125.2', '192.168.125.3']
-        self.assertListEqual(tunels_pool_allocated, correct_tunnels_pool_allocation)
-        self.assertListEqual(y1_guests_pool_allocated, correct_y1_guests_pool_allocation)
+        self.assertCountEqual(tunels_pool_allocated, correct_tunnels_pool_allocation)
+        self.assertCountEqual(y1_guests_pool_allocated, correct_y1_guests_pool_allocation)
 
     def test_child_groups_cleanup(self):
         obj = InventoryData(paths.ORPHANED_CHILD_GORUPS_INVENTORY)
@@ -261,8 +259,8 @@ class TestInventoryRecalculation(TestInventoryBase):
         all_children = obj.group_get("all").get_children()
         self.assertListEqual([], front_children)
         self.assertListEqual([], guests_y1_children)
-        self.assertListEqual(['guests-y1'], all_guests_children)
-        self.assertListEqual(['all-guests', 'front'], all_children)
+        self.assertCountEqual(['guests-y1'], all_guests_children)
+        self.assertCountEqual(['all-guests', 'front'], all_children)
 
     def test_is_recalculated_flag(self):
         obj = InventoryData(paths.EMPTY_CHECKSUM_OK_INVENTORY)
@@ -276,9 +274,9 @@ class TestInventoryRecalculation(TestInventoryBase):
         front_hosts = obj.group_get("front").get_hosts()
         guests_y1_hosts = obj.group_get("guests-y1").get_hosts()
         hypervisor_hosts = obj.group_get("hypervisor").get_hosts()
-        self.assertListEqual(guests_y1_hosts, ['foobarator.y1', 'y1-front.foobar'])
-        self.assertListEqual(front_hosts, ['y1-front.foobar'])
-        self.assertListEqual(hypervisor_hosts, ['y1'])
+        self.assertCountEqual(guests_y1_hosts, ['foobarator.y1', 'y1-front.foobar'])
+        self.assertCountEqual(front_hosts, ['y1-front.foobar'])
+        self.assertCountEqual(hypervisor_hosts, ['y1'])
 
     @mock.patch('inventory_tool.object.inventory.InventoryData.host_rename')
     def test_hostname_normalization(self, HostRenameMock):
@@ -293,10 +291,10 @@ class TestInventoryRecalculation(TestInventoryBase):
         foobarator_aliases = obj.host_get("foobarator.y1").get_aliases()
         y1_aliases = obj.host_get("y1").get_aliases()
         y1_front_aliases = obj.host_get("y1-front.foobar").get_aliases()
-        self.assertListEqual(foobarator_aliases,
-                             ['proper', 'gulgulator', 'other'])
-        self.assertListEqual(y1_aliases, ["other-proper"])
-        self.assertListEqual(y1_front_aliases, [])
+        self.assertCountEqual(foobarator_aliases,
+                              ['proper', 'gulgulator', 'other'])
+        self.assertCountEqual(y1_aliases, ["other-proper"])
+        self.assertCountEqual(y1_front_aliases, [])
 
 
 class TestInventoryHostFunctionality(TestInventoryBase):
@@ -341,6 +339,50 @@ class TestInventoryHostMiscFunctionality(TestInventoryHostFunctionality):
                         'keyvals': {'ansible_ssh_host': '192.168.125.2'}
                         }
         self.assertEqual(host_hash, correct_hash)
+
+    def test_get_all_hosts(self):
+        hosts = self.obj.host_get()
+
+        self.assertCountEqual(hosts, ['y1', 'y1-front.foobar', 'foobarator.y1'])
+
+    def test_get_existing_host(self):
+        host = self.obj.host_get('foobarator.y1')
+
+        host_hash = host.get_hash()
+        correct_hash = {'keyvals': {'ansible_ssh_host': '192.168.125.3'},
+                        'aliases': []}
+
+        self.assertEqual(host_hash, correct_hash)
+
+    def test_get_nonexistant_host(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_get("foobar")
+
+    def test_add_existing_host(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_add("y1")
+
+    def test_add_host_conflicting_with_alias(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_add("front-foobar.y1")
+
+    @mock.patch("inventory_tool.object.host.Host")
+    def test_add_host(self, HostMock):
+        self.obj.host_add("y2")
+        HostMock.assert_called_once()
+        self.assertIn("y2", self.obj.host_get())
+
+    def test_inexistant_host_del(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.host_del("y2")
+
+    def test_host_del(self):
+        self.obj.host_del("y1")
+
+        self.assertFalse(self.obj.group_get("hypervisor").has_host("y1"))
+        allocated_ips = self.obj.ippool_get("tunels").get_hash()["allocated"]
+        self.assertEqual(allocated_ips, [])
+        self.assertNotIn("y1", self.obj.host_get())
 
 
 class TestInventoryHostAliasFunctionality(TestInventoryHostFunctionality):
@@ -508,8 +550,6 @@ class TestInventoryHostKeyvalFunctionality(TestInventoryHostFunctionality):
         self.assertEqual(host_hash, correct_hash)
         ippool_hash = self.obj.ippool_get("tunels").get_hash()
         self.assertListEqual(ippool_hash['allocated'], ["192.168.255.1"])
-
-
 
 
 class TestInventoryGroupFunctionality(TestInventoryBase):
