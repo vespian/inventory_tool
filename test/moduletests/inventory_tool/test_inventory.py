@@ -35,10 +35,8 @@ from inventory_tool.exception import MalformedInputException, BadDataException
 # under a different name:
 try:
     from ipaddress import ip_address
-    from ipaddress import ip_network
 except ImportError:
     from ipaddr import IPAddress as ip_address
-    from ipaddr import IPNetwork as ip_network
 
 
 class TestInventoryBase(unittest.TestCase):
@@ -575,7 +573,7 @@ class TestInventoryIPPoolFunctionality(TestInventoryHostFunctionality):
         self.obj.ippool_add("tunels2", i.IPPool("10.0.0.0/24"))
         ippool_hash = self.obj.ippool_get("tunels2").get_hash()
         correct_hash = {'network': '10.0.0.0/24', 'reserved': [], 'allocated': []}
-        self.assertEqual(ippool_hash, ippool_hash)
+        self.assertEqual(ippool_hash, correct_hash)
 
     def test_del_inexistant_ippool(self):
         with self.assertRaises(MalformedInputException):
@@ -595,7 +593,7 @@ class TestInventoryIPPoolFunctionality(TestInventoryHostFunctionality):
 
     def test_get_missing_ippool(self):
         with self.assertRaises(MalformedInputException):
-            ippools = self.obj.ippool_get("makapaka")
+            self.obj.ippool_get("makapaka")
 
     def test_get_ippool(self):
         ippool = self.obj.ippool_get("tunels")
@@ -654,5 +652,65 @@ class TestInventoryIPPoolFunctionality(TestInventoryHostFunctionality):
         self.assertEqual(ippool.get_hash(), correct_ippool_data)
 
 
-class TestInventoryGroupFunctionality(TestInventoryBase):
-    pass
+class TestInventoryGroupFunctionality(TestInventoryHostFunctionality):
+    def test_group_add_existing(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.group_add("hypervisor")
+
+    @mock.patch("inventory_tool.object.group.Group")
+    def test_group_add(self, GroupMock):
+        self.obj.group_add("hypervisor2")
+        GroupMock.assert_called_once_with()
+
+    def test_group_del_inexistant(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.group_del("hypervisor2")
+
+    def test_group_del_without_children(self):
+        self.obj.group_del("front")
+        with self.assertRaises(MalformedInputException):
+            self.obj.group_get("front")
+
+    def test_group_del_with_children(self):
+        obj = iv.InventoryData(paths.CHILD_GROUPS_INVENTORY)
+        obj.group_del("front")
+        group_hash = obj.group_get("all").get_hash()
+        self.assertCountEqual(group_hash["children"], ["all-guests"])
+
+    def test_group_get_all(self):
+        group_list = self.obj.group_get()
+        self.assertCountEqual(group_list, ["front", "guests-y1", "hypervisor"])
+
+    def test_group_get_inexistant(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.group_get("hypervisor2")
+
+    def test_group_get(self):
+        group_hash = self.obj.group_get("hypervisor").get_hash()
+        self.assertEqual(group_hash, {'children': [],
+                                      'hosts': ['y1'],
+                                      'ippools': {'tunnel_ip': 'tunels'}})
+
+    def test_group_child_add_to_inexistant_group(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.group_child_add("hypervisor2", "front")
+
+    def test_group_inexistant_child_add(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.group_child_add("hypervisor", "blabla")
+
+    def test_group_add_child(self):
+        self.obj.group_child_add("hypervisor", "front")
+        group_hash = self.obj.group_get("hypervisor").get_hash()
+        self.assertCountEqual(group_hash["children"], ["front"])
+
+    def test_group_del_child_from_inexistant_group(self):
+        obj = iv.InventoryData(paths.CHILD_GROUPS_INVENTORY)
+        with self.assertRaises(MalformedInputException):
+            obj.group_child_del("all2", "front")
+
+    def test_group_del_child(self):
+        obj = iv.InventoryData(paths.CHILD_GROUPS_INVENTORY)
+        obj.group_child_del("all", "front")
+        group_hash = obj.group_get("all").get_hash()
+        self.assertCountEqual(group_hash["children"], ["all-guests"])

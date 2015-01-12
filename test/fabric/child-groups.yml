@@ -1,0 +1,25 @@
+_meta:
+  checksum: 367d0830fae41d9f670457c5fe5cdbf9a83b889df51be4b2b79889d3712f1cc0
+  version: 1
+groups:
+  front:
+    children: []
+    hosts: []
+    ippools: {}
+  guests-y1:
+    children: []
+    hosts: []
+    ippools: {}
+  all-guests:
+    children:
+    - guests-y1
+    hosts: []
+    ippools: {}
+  all:
+    children:
+    - all-guests
+    - front
+    hosts: []
+    ippools: {}
+hosts: {}
+ippools: {}
