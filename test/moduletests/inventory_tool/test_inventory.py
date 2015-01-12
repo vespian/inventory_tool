@@ -31,6 +31,15 @@ import inventory_tool.object.ippool as i
 import inventory_tool.object.inventory as iv
 from inventory_tool.exception import MalformedInputException, BadDataException
 
+# For Python3 < 3.3, ipaddress module is available as an extra module,
+# under a different name:
+try:
+    from ipaddress import ip_address
+    from ipaddress import ip_network
+except ImportError:
+    from ipaddr import IPAddress as ip_address
+    from ipaddr import IPNetwork as ip_network
+
 
 class TestInventoryBase(unittest.TestCase):
 
@@ -608,6 +617,42 @@ class TestInventoryIPPoolFunctionality(TestInventoryHostFunctionality):
         self.obj.ippool_assign("tunels", "front", "some_var")
         group_data = self.obj.group_get("front").get_hash()
         self.assertEqual(group_data["ippools"], {'some_var': 'tunels'})
+
+    def test_ippool_removal(self):
+        self.obj.ippool_revoke('tunels', 'hypervisor', 'tunnel_ip')
+        group_data = self.obj.group_get("hypervisor").get_hash()
+        self.assertEqual(group_data["ippools"], {})
+
+    def test_ippool_removal_from_inexistant_group(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.ippool_revoke('tunels', 'blabla', 'tunnel_ip')
+
+    def test_ippool_book_addr_inexistant_pool(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.ippool_book_ipaddr('blabla', ip_address("1.2.3.4"))
+
+    def test_ippool_book_addr(self):
+        self.obj.ippool_book_ipaddr('tunels', ip_address("192.168.255.126"))
+        ippool = self.obj.ippool_get("tunels")
+        correct_ippool_data = {'allocated': ['192.168.255.125'],
+                               'network': '192.168.255.0/24',
+                               'reserved': ['192.168.255.126']}
+
+        self.assertEqual(ippool.get_hash(), correct_ippool_data)
+
+    def test_ippool_canel_addr_inexistant_pool(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.ippool_cancel_ipaddr('blabla', ip_address("1.2.3.4"))
+
+    def test_ippool_cancel_addr(self):
+        self.obj.ippool_cancel_ipaddr('y1_guests', ip_address("192.168.125.1"))
+        ippool = self.obj.ippool_get("y1_guests")
+        correct_ippool_data = {'allocated': ['192.168.125.2', '192.168.125.3'],
+                               'network': '192.168.125.0/24',
+                               'reserved': []}
+
+        self.assertEqual(ippool.get_hash(), correct_ippool_data)
+
 
 class TestInventoryGroupFunctionality(TestInventoryBase):
     pass

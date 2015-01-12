@@ -169,6 +169,10 @@ class TestGroupIPPool(TestGroupBase):
         self.group_obj.del_pool_by_var('varA')
         self.assertIsNone(self.group_obj.get_pool('varA'))
 
+    def test_del_pool_by_inexistant_var(self, *unused):
+        with self.assertRaises(MalformedInputException):
+            self.group_obj.del_pool_by_var('some-var')
+
     def test_del_pool_by_pool_existing(self, *unused):
         self.group_obj.del_pool_by_pool('poolY')
         self.assertIsNone(self.group_obj.get_pool('varB'))
