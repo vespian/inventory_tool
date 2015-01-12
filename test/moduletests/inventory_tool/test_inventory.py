@@ -86,6 +86,14 @@ class TestInventoryBase(unittest.TestCase):
             self._normalization_func
 
 
+class TestInventoryBaseWithInit(TestInventoryBase):
+    def setUp(self):
+        super().setUp()
+        OpenMock = mock.mock_open(read_data=self._file_data)
+        with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
+            self.obj = iv.InventoryData(paths.TMP_INVENTORY)
+
+
 class TestInventoryInit(TestInventoryBase):
     def setUp(self):
         super().setUp()
@@ -97,7 +105,7 @@ class TestInventoryInit(TestInventoryBase):
             self.mocks[patched] = patcher.start()
             self.addCleanup(patcher.stop)
 
-    def test_inventory_init(self):
+    def test_init_inventory(self):
         empty_inventory = {'_meta': {'hostvars': {}},
                            'all': {'children': [],
                                    'hosts': [],
@@ -109,7 +117,7 @@ class TestInventoryInit(TestInventoryBase):
         self.assertFalse(OpenMock.called)
         self.assertEqual(empty_inventory, obj.get_ansible_inventory())
 
-    def test_inventory_file_missing(self):
+    def test_init_inventory_file_missing(self):
         OpenMock = mock.mock_open(read_data=self._file_data)
 
         def raise_not_found(*unused):
@@ -125,7 +133,7 @@ class TestInventoryInit(TestInventoryBase):
                             create=True):
                 iv.InventoryData(paths.TEST_INVENTORY)
 
-    def test_load_unsupported_file_format(self):
+    def test_init_load_unsupported_file_format(self):
         data = self._file_data
         data = data.replace('version: 1', "version: 0")
         OpenMock = mock.mock_open(read_data=data)
@@ -135,7 +143,7 @@ class TestInventoryInit(TestInventoryBase):
                 iv.InventoryData(paths.TEST_INVENTORY)
 
     @mock.patch("inventory_tool.object.inventory.InventoryData.recalculate_inventory")
-    def test_load_bad_checksum(self, RecalculateInventoryMock):
+    def test_init_load_bad_checksum(self, RecalculateInventoryMock):
         # mock out inventory recalculation
         data = self._file_data
         data = data.replace('6119b68e3bc8d569568a93', '6119b68e3bc8d569568a16')
@@ -146,7 +154,7 @@ class TestInventoryInit(TestInventoryBase):
 
         RecalculateInventoryMock.assert_called_with()
 
-    def test_load_file_ok(self):
+    def test_init_all_ok(self):
         OpenMock = mock.mock_open(read_data=self._file_data)
 
         with mock.patch('inventory_tool.object.inventory.open', OpenMock,
@@ -185,7 +193,7 @@ class TestInventoryInit(TestInventoryBase):
 
 
 class TestInventorySave(TestInventoryBase):
-    def test_save_file(self):
+    def test_save_all_ok(self):
         OpenMock = mock.mock_open(read_data=self._file_data)
         with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
             obj = iv.InventoryData(paths.TMP_INVENTORY)
@@ -201,12 +209,12 @@ class TestInventorySave(TestInventoryBase):
 
 
 class TestInventoryAnsibleFuncionality(TestInventoryBase):
-    def test_missing_ansible_ssh_host(self):
+    def test_ansible_missing_ssh_host(self):
         obj = iv.InventoryData(paths.MISSING_ANSIBLE_SSH_HOST_INVENTORY)
         with self.assertRaises(BadDataException):
             obj.get_ansible_inventory()
 
-    def test_get_ansible_inventory(self):
+    def test_ansible_get_inventory(self):
         self.maxDiff = None
         OpenMock = mock.mock_open(read_data=self._file_data)
         with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
@@ -237,18 +245,18 @@ class TestInventoryAnsibleFuncionality(TestInventoryBase):
 
 
 class TestInventoryRecalculation(TestInventoryBase):
-    def test_overlapping_ippools(self):
+    def test_recalculatio_with_overlapping_ippools(self):
         obj = iv.InventoryData(paths.OVERLAPPING_IPPOOLS_INVENTORY)
 
         with self.assertRaises(BadDataException):
             obj.recalculate_inventory()
 
-    def test_nonoverlapping_ippools(self):
+    def test_recalculation_with_nonoverlapping_ippools(self):
         obj = iv.InventoryData(paths.NONOVERLAPPING_IPPOOLS_INVENTORY)
 
         obj.recalculate_inventory()
 
-    def test_ippool_refresh(self):
+    def test_recalculation_ippool_refresh(self):
         obj = iv.InventoryData(paths.REFRESHED_IPPOOL_INVENTORY)
         obj.recalculate_inventory()
         y1_guests_pool_allocated = obj.ippool_get('y1_guests').get_hash()["allocated"]
@@ -258,7 +266,7 @@ class TestInventoryRecalculation(TestInventoryBase):
         self.assertCountEqual(tunels_pool_allocated, correct_tunnels_pool_allocation)
         self.assertCountEqual(y1_guests_pool_allocated, correct_y1_guests_pool_allocation)
 
-    def test_child_groups_cleanup(self):
+    def test_recalculation_child_groups_cleanup(self):
         obj = iv.InventoryData(paths.ORPHANED_CHILD_GORUPS_INVENTORY)
         obj.recalculate_inventory()
         front_children = obj.group_get("front").get_children()
@@ -270,13 +278,13 @@ class TestInventoryRecalculation(TestInventoryBase):
         self.assertCountEqual(['guests-y1'], all_guests_children)
         self.assertCountEqual(['all-guests', 'front'], all_children)
 
-    def test_is_recalculated_flag(self):
+    def test_recalculation_is_recalculated_flag(self):
         obj = iv.InventoryData(paths.EMPTY_CHECKSUM_OK_INVENTORY)
         self.assertFalse(obj.is_recalculated())
         obj = iv.InventoryData(paths.EMPTY_CHECKSUM_BAD_INVENTORY)
         self.assertTrue(obj.is_recalculated())
 
-    def test_hosts_cleanup(self):
+    def test_recalculation_hosts_cleanup(self):
         obj = iv.InventoryData(paths.ORPHANED_HOSTS_INVENTORY)
         obj.recalculate_inventory()
         front_hosts = obj.group_get("front").get_hosts()
@@ -287,13 +295,13 @@ class TestInventoryRecalculation(TestInventoryBase):
         self.assertCountEqual(hypervisor_hosts, ['y1'])
 
     @mock.patch('inventory_tool.object.inventory.InventoryData.host_rename')
-    def test_hostname_normalization(self, HostRenameMock):
+    def testrecalculation__hostname_normalization(self, HostRenameMock):
         obj = iv.InventoryData(paths.DENORMALIZED_HOSTNAMES_INVENTORY)
         obj.recalculate_inventory()
         HostRenameMock.assert_called_once_with('foobarator.y1.example.com',
                                                'foobarator.y1')
 
-    def test_alias_normalization(self):
+    def test_recalculation_alias_normalization(self):
         obj = iv.InventoryData(paths.DENORMALIZED_ALIASES_INVENTORY)
         obj.recalculate_inventory()
         foobarator_aliases = obj.host_get("foobarator.y1").get_aliases()
@@ -305,26 +313,22 @@ class TestInventoryRecalculation(TestInventoryBase):
         self.assertCountEqual(y1_front_aliases, [])
 
 
-class TestInventoryHostFunctionality(TestInventoryBase):
-    def setUp(self):
-        super().setUp()
-        OpenMock = mock.mock_open(read_data=self._file_data)
-        with mock.patch('inventory_tool.object.inventory.open', OpenMock, create=True):
-            self.obj = iv.InventoryData(paths.TMP_INVENTORY)
+class TestInventoryHostFunctionality(TestInventoryBaseWithInit):
+    pass
 
 
 class TestInventoryHostMiscFunctionality(TestInventoryHostFunctionality):
-    def test_host_to_groups(self):
+    def test_host_find_groups_membership(self):
         calculated_groups = self.obj.host_to_groups("y1-front.foobar")
         self.assertCountEqual(['guests-y1', 'front'], calculated_groups)
         calculated_groups = self.obj.host_to_groups("bulbulator")
         self.assertListEqual([], calculated_groups)
 
-    def test_inexistant_host_rename_mock(self):
+    def test_host_rename_inexistant(self):
         with self.assertRaises(MalformedInputException):
             self.obj.host_rename("bulbulator", "new-bulbulator")
 
-    def test_normalized_host_rename(self):
+    def test_host_rename_normalized(self):
         self.obj.host_rename("y1-front.foobar", "y1-lorem.ipsum")
 
         with self.assertRaises(MalformedInputException):
@@ -336,7 +340,7 @@ class TestInventoryHostMiscFunctionality(TestInventoryHostFunctionality):
                         }
         self.assertEqual(host_hash, correct_hash)
 
-    def test_denormalized_host_rename(self):
+    def test_host_rename_denormalized(self):
         self.obj.host_rename("y1-front.foobar", "gulgulator.example.com")
 
         with self.assertRaises(MalformedInputException):
@@ -348,12 +352,12 @@ class TestInventoryHostMiscFunctionality(TestInventoryHostFunctionality):
                         }
         self.assertEqual(host_hash, correct_hash)
 
-    def test_get_all_hosts(self):
+    def test_host_get_all(self):
         hosts = self.obj.host_get()
 
         self.assertCountEqual(hosts, ['y1', 'y1-front.foobar', 'foobarator.y1'])
 
-    def test_get_existing_host(self):
+    def test_host_get_existing(self):
         host = self.obj.host_get('foobarator.y1')
 
         host_hash = host.get_hash()
@@ -362,25 +366,25 @@ class TestInventoryHostMiscFunctionality(TestInventoryHostFunctionality):
 
         self.assertEqual(host_hash, correct_hash)
 
-    def test_get_nonexistant_host(self):
+    def test_host_get_nonexistant(self):
         with self.assertRaises(MalformedInputException):
             self.obj.host_get("foobar")
 
-    def test_add_existing_host(self):
+    def test_host_add_existing(self):
         with self.assertRaises(MalformedInputException):
             self.obj.host_add("y1")
 
-    def test_add_host_conflicting_with_alias(self):
+    def test_host_add_host_conflicting_with_alias(self):
         with self.assertRaises(MalformedInputException):
             self.obj.host_add("front-foobar.y1")
 
     @mock.patch("inventory_tool.object.host.Host")
-    def test_add_host(self, HostMock):
+    def test_host_add_allok(self, HostMock):
         self.obj.host_add("y2")
         HostMock.assert_called_once()
         self.assertIn("y2", self.obj.host_get())
 
-    def test_inexistant_host_del(self):
+    def test_host_del_inexistant(self):
         with self.assertRaises(MalformedInputException):
             self.obj.host_del("y2")
 
@@ -394,7 +398,7 @@ class TestInventoryHostMiscFunctionality(TestInventoryHostFunctionality):
 
 
 class TestInventoryHostAliasFunctionality(TestInventoryHostFunctionality):
-    def test_delete_normalized_alias(self):
+    def test_host_delete_normalized_alias(self):
         self.obj.host_alias_del("y1-front.foobar", 'front-foobar.y1')
         host_hash = self.obj.host_get("y1-front.foobar").get_hash()
         correct_hash = {'aliases': [],
@@ -402,7 +406,7 @@ class TestInventoryHostAliasFunctionality(TestInventoryHostFunctionality):
                         }
         self.assertEqual(host_hash, correct_hash)
 
-    def test_delete_denormalized_alias(self):
+    def test_host_delete_denormalized_alias(self):
         self.obj.host_alias_del("y1-front.foobar.example.com", 'front-foobar.y1')
         host_hash = self.obj.host_get("y1-front.foobar").get_hash()
         correct_hash = {'aliases': [],
@@ -410,23 +414,23 @@ class TestInventoryHostAliasFunctionality(TestInventoryHostFunctionality):
                         }
         self.assertEqual(host_hash, correct_hash)
 
-    def test_delete_missing_alias(self):
+    def test_host_delete_missing_alias(self):
         with self.assertRaises(MalformedInputException):
             self.obj.host_alias_del("foo-bar", 'foobarator')
 
-    def test_add_alias_to_missing_host(self):
+    def test_host_add_alias_to_missing_host(self):
         with self.assertRaises(MalformedInputException):
             self.obj.host_alias_add("foo-bar", 'foobarator')
 
-    def test_add_alias_that_duplicates_host(self):
+    def test_host_add_alias_that_duplicates_host(self):
         with self.assertRaises(MalformedInputException):
             self.obj.host_alias_add("foobarator.y1", 'y1')
 
-    def test_add_alias_that_duplicates_other_alias(self):
+    def test_host_add_alias_that_duplicates_other_alias(self):
         with self.assertRaises(MalformedInputException):
             self.obj.host_alias_add("foobarator.y1", 'front-foobar.y1')
 
-    def test_add_alias(self):
+    def test_host_add_alias_allok(self):
         self.obj.host_alias_add("foobarator.y1", "some-alias.y1")
         host_hash = self.obj.host_get("foobarator.y1").get_hash()
         correct_hash = {'aliases': ['some-alias.y1'],
@@ -436,7 +440,7 @@ class TestInventoryHostAliasFunctionality(TestInventoryHostFunctionality):
 
 
 class TestInventoryHostKeyvalFunctionality(TestInventoryHostFunctionality):
-    def test_plain_keyval_removal(self):
+    def test_host_plain_keyval_removal_allok(self):
         # FIXME - this can be done without introducing another fabric file,
         # but hosts-production needs to be changed and with it a lot of tests.
         obj = iv.InventoryData(paths.HOSTVARS_INVENTORY)
@@ -451,11 +455,11 @@ class TestInventoryHostKeyvalFunctionality(TestInventoryHostFunctionality):
                         }
         self.assertEqual(host_hash, correct_hash)
 
-    def test_plain_keyval_removal_from_missing_host(self):
+    def test_host_plain_keyval_removal_from_missing_host(self):
         with self.assertRaises(MalformedInputException):
             self.obj.host_del_vars("lorem-ipsum", 'some_keyval')
 
-    def test_plain_keyval_removal_which_does_not_exists(self):
+    def test_host_plain_inexistant_keyval_removal(self):
         obj = iv.InventoryData(paths.HOSTVARS_INVENTORY)
         with self.assertRaises(MalformedInputException):
             self.obj.host_del_vars('foobarator.y1',
@@ -472,7 +476,7 @@ class TestInventoryHostKeyvalFunctionality(TestInventoryHostFunctionality):
                         }
         self.assertEqual(host_hash, correct_hash)
 
-    def test_plain_keyval_set(self):
+    def test_host_plain_keyval_set_allok(self):
         self.obj.host_set_vars('y1', [{"key": 'some_keyval', "val": "some_val"}])
 
         host_hash = self.obj.host_get("y1").get_hash()
@@ -484,12 +488,12 @@ class TestInventoryHostKeyvalFunctionality(TestInventoryHostFunctionality):
                         }
         self.assertEqual(host_hash, correct_hash)
 
-    def test_plain_keyval_set_for_inexistant_host(self):
+    def test_host_plain_keyval_set_for_inexistant_host(self):
         with self.assertRaises(MalformedInputException):
             self.obj.host_set_vars("lorem-ipsum", [{"key": 'some_keyval',
                                                    "val": "some_val"}])
 
-    def test_ipaddr_keyval_removal(self):
+    def test_host_ipaddr_keyval_removal(self):
         self.obj.host_del_vars('y1',
                                ['tunnel_ip'])
 
@@ -505,7 +509,7 @@ class TestInventoryHostKeyvalFunctionality(TestInventoryHostFunctionality):
         ippool_hash = self.obj.ippool_get("tunels").get_hash()
         self.assertListEqual([], ippool_hash['allocated'])
 
-    def test_ipaddr_keyval_set_without_autoallocation(self):
+    def test_host_ipaddr_keyval_set_without_autoallocation(self):
         self.obj.host_set_vars('foobarator.y1', [{"key": 'tunnel_ip', "val": "1.2.3.20"}])
 
         host_hash = self.obj.host_get("foobarator.y1").get_hash()
@@ -516,7 +520,7 @@ class TestInventoryHostKeyvalFunctionality(TestInventoryHostFunctionality):
                         }
         self.assertEqual(host_hash, correct_hash)
 
-    def test_ipaddr_keyval_set_with_autoallocation(self):
+    def test_host_ipaddr_keyval_set_with_autoallocation(self):
         obj = iv.InventoryData(paths.IPADDR_AUTOALLOCATION_INVENTORY)
         obj.host_set_vars('y1-front.foobar', [{"key": 'tunnel_ip', "val": None}])
 
@@ -526,12 +530,12 @@ class TestInventoryHostKeyvalFunctionality(TestInventoryHostFunctionality):
                         }
         self.assertEqual(host_hash, correct_hash)
 
-    def test_ipaddr_keyval_set_with_broken_autoallocation(self):
+    def test_host_ipaddr_keyval_set_with_broken_autoallocation(self):
         with self.assertRaises(MalformedInputException):
             self.obj.host_set_vars('foobarator.y1', [{"key": 'var_without_pool',
                                                       "val": None}])
 
-    def test_ipaddr_keyval_change_without_autoallocation(self):
+    def test_host_ipaddr_keyval_change_without_autoallocation(self):
         self.obj.host_set_vars('y1', [{"key": 'tunnel_ip', "val": "192.168.255.123"}])
 
         # Check if keyval was removed:
@@ -545,7 +549,7 @@ class TestInventoryHostKeyvalFunctionality(TestInventoryHostFunctionality):
         ippool_hash = self.obj.ippool_get("tunels").get_hash()
         self.assertListEqual(ippool_hash['allocated'], ["192.168.255.123"])
 
-    def test_ipaddr_keyval_change_with_autoallocation(self):
+    def test_host_ipaddr_keyval_change_with_autoallocation(self):
         self.obj.host_set_vars('y1', [{"key": 'tunnel_ip', "val": None}])
 
         # Check if keyval was removed:
@@ -560,26 +564,26 @@ class TestInventoryHostKeyvalFunctionality(TestInventoryHostFunctionality):
         self.assertListEqual(ippool_hash['allocated'], ["192.168.255.1"])
 
 
-class TestInventoryIPPoolFunctionality(TestInventoryHostFunctionality):
-    def test_add_duplicated_ippool(self):
+class TestInventoryIPPoolFunctionality(TestInventoryBaseWithInit):
+    def test_ippool_add_duplicated(self):
         with self.assertRaises(MalformedInputException):
             self.obj.ippool_add("tunels", i.IPPool("10.0.0.0/24"))
 
-    def test_add_overlapping_ippool(self):
+    def test_ippool_add_overlapping(self):
         with self.assertRaises(MalformedInputException):
             self.obj.ippool_add("tunels2", i.IPPool("192.168.255.0/24"))
 
-    def test_add_ippool(self):
+    def test_ippool_add_allok(self):
         self.obj.ippool_add("tunels2", i.IPPool("10.0.0.0/24"))
         ippool_hash = self.obj.ippool_get("tunels2").get_hash()
         correct_hash = {'network': '10.0.0.0/24', 'reserved': [], 'allocated': []}
         self.assertEqual(ippool_hash, correct_hash)
 
-    def test_del_inexistant_ippool(self):
+    def test_ippool_del_inexistant(self):
         with self.assertRaises(MalformedInputException):
             self.obj.ippool_del("not-an-ippool")
 
-    def test_del_ippool(self):
+    def test_ippool_del_allok(self):
         self.obj.ippool_del("tunels")
         group_hash = self.obj.group_get("hypervisor").get_hash()
         self.assertEqual(group_hash["ippools"], {})
@@ -587,15 +591,15 @@ class TestInventoryIPPoolFunctionality(TestInventoryHostFunctionality):
         with self.assertRaises(MalformedInputException):
             self.obj.ippool_get("tunels")
 
-    def test_get_all_ippools(self):
+    def test_ippool_get_all(self):
         ippools = self.obj.ippool_get()
         self.assertCountEqual(ippools, ['tunels', 'y1_guests'])
 
-    def test_get_missing_ippool(self):
+    def test_ippool_get_missing(self):
         with self.assertRaises(MalformedInputException):
             self.obj.ippool_get("makapaka")
 
-    def test_get_ippool(self):
+    def test_ippool_get_allok(self):
         ippool = self.obj.ippool_get("tunels")
         correct_ippool_data = {'allocated': ['192.168.255.125'],
                                'network': '192.168.255.0/24',
@@ -603,20 +607,20 @@ class TestInventoryIPPoolFunctionality(TestInventoryHostFunctionality):
 
         self.assertEqual(ippool.get_hash(), correct_ippool_data)
 
-    def test_assign_ippool_to_missing_group(self):
+    def test_ippool_assign_to_missing_group(self):
         with self.assertRaises(MalformedInputException):
             self.obj.ippool_assign("tunels", "not-a-group", "some_var")
 
-    def test_assign_missing_ippool_to_group(self):
+    def test_ippool_assign_missing_to_group(self):
         with self.assertRaises(MalformedInputException):
             self.obj.ippool_assign("not-an-ippool", "hypervisor", "some_var")
 
-    def test_assign_ippool(self):
+    def test_ippool_assign_allok(self):
         self.obj.ippool_assign("tunels", "front", "some_var")
         group_data = self.obj.group_get("front").get_hash()
         self.assertEqual(group_data["ippools"], {'some_var': 'tunels'})
 
-    def test_ippool_removal(self):
+    def test_ippool_removal_allok(self):
         self.obj.ippool_revoke('tunels', 'hypervisor', 'tunnel_ip')
         group_data = self.obj.group_get("hypervisor").get_hash()
         self.assertEqual(group_data["ippools"], {})
@@ -625,11 +629,11 @@ class TestInventoryIPPoolFunctionality(TestInventoryHostFunctionality):
         with self.assertRaises(MalformedInputException):
             self.obj.ippool_revoke('tunels', 'blabla', 'tunnel_ip')
 
-    def test_ippool_book_addr_inexistant_pool(self):
+    def test_ippool_book_addr_from_inexistant(self):
         with self.assertRaises(MalformedInputException):
             self.obj.ippool_book_ipaddr('blabla', ip_address("1.2.3.4"))
 
-    def test_ippool_book_addr(self):
+    def test_ippool_book_addr_allok(self):
         self.obj.ippool_book_ipaddr('tunels', ip_address("192.168.255.126"))
         ippool = self.obj.ippool_get("tunels")
         correct_ippool_data = {'allocated': ['192.168.255.125'],
@@ -638,11 +642,11 @@ class TestInventoryIPPoolFunctionality(TestInventoryHostFunctionality):
 
         self.assertEqual(ippool.get_hash(), correct_ippool_data)
 
-    def test_ippool_canel_addr_inexistant_pool(self):
+    def test_ippool_canel_addr_from_inexistant(self):
         with self.assertRaises(MalformedInputException):
             self.obj.ippool_cancel_ipaddr('blabla', ip_address("1.2.3.4"))
 
-    def test_ippool_cancel_addr(self):
+    def test_ippool_cancel_addr_allok(self):
         self.obj.ippool_cancel_ipaddr('y1_guests', ip_address("192.168.125.1"))
         ippool = self.obj.ippool_get("y1_guests")
         correct_ippool_data = {'allocated': ['192.168.125.2', '192.168.125.3'],
@@ -652,7 +656,7 @@ class TestInventoryIPPoolFunctionality(TestInventoryHostFunctionality):
         self.assertEqual(ippool.get_hash(), correct_ippool_data)
 
 
-class TestInventoryGroupFunctionality(TestInventoryHostFunctionality):
+class TestInventoryGroupFunctionality(TestInventoryBaseWithInit):
     def test_group_add_existing(self):
         with self.assertRaises(MalformedInputException):
             self.obj.group_add("hypervisor")
@@ -714,3 +718,25 @@ class TestInventoryGroupFunctionality(TestInventoryHostFunctionality):
         obj.group_child_del("all", "front")
         group_hash = obj.group_get("all").get_hash()
         self.assertCountEqual(group_hash["children"], ["all-guests"])
+
+    def test_group_host_add_to_inexistant_group(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.group_host_add("hypervisor2", "foobarator.y1")
+
+    def test_group_inexistant_host_add(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.group_host_add("hypervisor", "bumbum")
+
+    def test_group_host_add(self):
+        self.obj.group_host_add("hypervisor", "foobarator.y1")
+        group_hash = self.obj.group_get("hypervisor").get_hash()
+        self.assertCountEqual(group_hash["hosts"], ["y1", "foobarator.y1"])
+
+    def test_group_host_del_from_inexistant_group(self):
+        with self.assertRaises(MalformedInputException):
+            self.obj.group_host_del("hypervisor2", "foobarator.y1")
+
+    def test_group_host_del(self):
+        self.obj.group_host_del("hypervisor", "y1")
+        group_hash = self.obj.group_get("hypervisor").get_hash()
+        self.assertCountEqual(group_hash["hosts"], [])
