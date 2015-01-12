@@ -400,8 +400,7 @@ class InventoryData:
             raise MalformedInputException(msg)
         else:
             for group in self._data['groups']:
-                self._data['groups'][group].del_pool_by_pool(
-                    self._data['ippools'][pool])
+                self._data['groups'][group].del_pool_by_pool(pool)
             del self._data['ippools'][pool]
 
     def ippool_get(self, pool=None):
