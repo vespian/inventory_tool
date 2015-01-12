@@ -454,8 +454,9 @@ class InventoryData:
             group: name of the group given pool should be revoked from
         """
         if group not in self._data['groups']:
-            logging.debug("Ignoring an attemtp to remove ip pool from " +
-                          "inexistant group {0}".format(group))
+            msg = "An attemtp to remove ip pool from inexistant group {0}"
+            msg = msg.format(group)
+            raise MalformedInputException(msg)
         else:
             self._data['groups'][group].del_pool_by_var(var=pool_related_var)
 

@@ -221,8 +221,8 @@ class Group:
         try:
             del self._ippools[var]
         except KeyError:
-            logging.debug("Ignoring removal of already absent pool for var " +
-                          var)
+            msg = "Trying to remove a pool from var that has not been assigned yet"
+            raise MalformedInputException(msg)
 
     # Awkward ;)
     def del_pool_by_pool(self, pool):
