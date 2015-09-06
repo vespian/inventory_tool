@@ -23,7 +23,6 @@ import yaml
 
 import inventory_tool
 from inventory_tool.exception import ScriptException
-from inventory_tool.object.host import Host
 from inventory_tool.object.inventory import InventoryData
 from inventory_tool.validators import KeyWordValidator, HostnameParser
 from inventory_tool.validators import get_name, get_ippool, get_ipaddr, get_fqdn, get_keyval
@@ -101,7 +100,8 @@ def main(args, inventory_path, backend_domain, extra_ipaddress_keywords=[],
             logging.debug("Dumping whole inventory to Json")
             res = inventory.get_ansible_inventory()
             save_data = inventory.is_recalculated()
-            print(json.dumps(res, sort_keys=True, indent=4, separators=(',', ': ')))
+            print(
+                json.dumps(res, sort_keys=True, indent=4, separators=(',', ': ')))
         elif 'subcommand' in config and config.subcommand == 'ippool':
             if any([config.add, config.assign, config.revoke, config.book,
                     config.cancel]):
@@ -336,7 +336,8 @@ def parse_commandline(script_path, commandline):
         type=get_ipaddr,
         metavar="ip-address",
         help="Restore to the pool an ip address reserved by -b/--book option.")
-    mutexgroup_ippool = parser_ippool.add_mutually_exclusive_group(required=False)
+    mutexgroup_ippool = parser_ippool.add_mutually_exclusive_group(
+        required=False)
     mutexgroup_ippool.add_argument(
         "-s", "--show",
         action="store_true",
@@ -390,7 +391,8 @@ def parse_commandline(script_path, commandline):
         type=get_name,
         metavar="host-name",
         help="Delete a host from the group",)
-    mutexgroup_group = parser_group.add_mutually_exclusive_group(required=False)
+    mutexgroup_group = parser_group.add_mutually_exclusive_group(
+        required=False)
     mutexgroup_group.add_argument(
         "-s", "--show",
         action="store_true",
